@@ -276,7 +276,7 @@ function App(){
 
       {/* HEADER */}
       <div style={{background:"#0c4a6e",color:"white",padding:"18px 20px 14px"}}>
-        <div style={{maxWidth:640,margin:"0 auto"}}>
+        <div style={{maxWidth:900,margin:"0 auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
             <div>
               <div style={{fontSize:11,color:"#7dd3fc",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:2}}>Partner Portal</div>
@@ -290,7 +290,7 @@ function App(){
         </div>
       </div>
 
-      <div style={{maxWidth:640,margin:"0 auto",padding:"16px 16px 40px"}}>
+      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 16px 40px"}}>
 
         {/* STEP 1 — MENU */}
         <Step n="1" title="Select menu">
@@ -742,6 +742,14 @@ const SB=({onClick,children})=><button onClick={onClick} style={{width:30,height
 const Tag=({c,bg,children})=><span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:bg,color:c,fontWeight:600}}>{children}</span>;
 const Mdl=({title,children,onClose,small})=>(<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:14,width:"100%",maxWidth:small?380:480,maxHeight:"85vh",overflow:"auto",padding:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontWeight:700,fontSize:15}}>{title}</div><button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#9ca3af"}}>✕</button></div>{children}</div></div>);
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+<script>
+(function(){
+  function post(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);try{parent.postMessage({__vtFrameHeight:h},"*");}catch(e){}}
+  window.addEventListener("load",post);window.addEventListener("resize",post);
+  if(window.ResizeObserver){new ResizeObserver(post).observe(document.body);}
+  setInterval(post,800);
+})();
 </script>
 </body>
 </html>
