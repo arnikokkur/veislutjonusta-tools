@@ -243,7 +243,7 @@ export default function App(){
     <table><tr><td class="lbl">Purchasing price per person (incl. VAT)</td><td>${fmt(o.coopCost)}</td></tr><tr><td class="lbl">Subtotal ex. VAT</td><td>${fmt(o.coopCostExVAT)}</td></tr><tr><td class="lbl">VAT 11%</td><td>${fmt(o.coopCostVATAmt)}</td></tr><tr class="tot"><td>Total you pay ${SUPPLIER_NAME}</td><td style="text-align:right">${fmt(o.coopCostTotal)}</td></tr></table>
     <div class="internal"><strong>📊 Margin summary</strong><br/>List price: ${fmt(o.listPrice)}/pax · Your price: ${fmt(o.guestPrice)}/pax · Markup: +${o.markupPct||0}% on list${o.isMajorHoliday?` · <span style="color:#dc2626">+15% major holiday surcharge included in cost</span>`:""}<br/>Guest revenue: ${fmt(guestTotalVal)} · Your cost: ${fmt(o.coopCostTotal)} · <strong>Profit: +${fmt(profitVal)} (${o.marginPct}% margin)</strong></div>
     <p style="font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">Partner wholesale rate — 12% co-op discount applied.<br>Payment: invoice within 7 days of event. Cancellation within 48h: full charge. 3–7 days: 50%. 7+ days: free.<br>Contact ${SUPPLIER_PHONE} for changes or clarifications.</p>
-    <script>window.onload=()=>window.print()</script></body></html>`;
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
   }
 
   // Customer-facing PDF — clean quote, no backend pricing
@@ -262,7 +262,7 @@ export default function App(){
     <div class="sect">Pricing</div>
     <table><tr><td class="lbl">Price per person (incl. VAT)</td><td><strong>${fmt(o.guestPrice)}</strong></td></tr><tr><td class="lbl">Subtotal ex. VAT (${o.guests} persons)</td><td>${fmt(exVAT)}</td></tr><tr><td class="lbl">VAT 11%</td><td>${fmt(vatAmt)}</td></tr><tr class="tot"><td>Total incl. VAT</td><td style="text-align:right;color:#0c4a6e">${fmt(guestTotalVal)}</td></tr></table>
     <p style="font-size:12px;color:#6b7280;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;line-height:1.7">This quote is prepared by ${PARTNER_NAME}. Catering provided by ${SUPPLIER_NAME}, Brúartorg, Selfoss.<br>Quote valid 7 days. Minimum 48h notice required. For questions contact ${PARTNER_NAME}.</p>
-    <script>window.onload=()=>window.print()</script></body></html>`;
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
   }
 
   function openPrint(o, mode="internal"){setPrintMode(mode);setPrintContent(mode==="customer"?buildCustomerHTML(o):buildOrderHTML(o));}

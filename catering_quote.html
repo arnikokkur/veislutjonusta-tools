@@ -439,7 +439,7 @@ export default function App(){
     </table>${nt?`<p style="font-size:12px;margin-top:10px"><strong>Notes:</strong> ${nt}</p>`:""}
     ${costBlock}${feedbackBlock}
     ${!reviewMode?`<div class="pol"><strong>Booking Policy</strong><br>${activePolicies.map(p=>`${p.icon} ${p.text}`).join("<br>")}</div>`:""}
-    ${!reviewMode?`<script>setTimeout(()=>window.print(),500)</script>`:""}</body></html>`;
+    ${!reviewMode?`<script>setTimeout(()=>window.print(),500)<\/script>`:""}</body></html>`;
   }
   function openPrint(isCustom,rm){setPrintContent({html:buildHTML(isCustom,rm),reviewMode:rm});setTimeout(()=>window.scrollTo(0,0),0);}
   function doPrint(){const iframe=printRef.current&&printRef.current.querySelector("iframe");if(iframe&&iframe.contentWindow){iframe.contentWindow.focus();iframe.contentWindow.print();}}
