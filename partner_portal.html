@@ -272,7 +272,7 @@ function App(){
   const canSend = guests>=10 && evDate && evTime && (status===null||status==="error");
 
   return(
-    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#f0f9ff",fontSize:14,color:"#111"}}>
+    <div style={{fontFamily:"system-ui,sans-serif",minHeight:0,background:"#f0f9ff",fontSize:14,color:"#111"}}>
 
       {/* HEADER */}
       <div style={{background:"#0c4a6e",color:"white",padding:"18px 20px 14px"}}>
@@ -745,7 +745,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(
 </script>
 <script>
 (function(){
-  function post(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);try{parent.postMessage({__vtFrameHeight:h},"*");}catch(e){}}
+  var last=0;
+  function post(){
+    var h=Math.max(document.body.scrollHeight,document.body.offsetHeight,document.documentElement.scrollHeight);
+    if(Math.abs(h-last)>2){last=h;try{parent.postMessage({__vtFrameHeight:h},"*");}catch(e){}}
+  }
   window.addEventListener("load",post);window.addEventListener("resize",post);
   if(window.ResizeObserver){new ResizeObserver(post).observe(document.body);}
   setInterval(post,800);

@@ -450,7 +450,7 @@ function App(){
   const TB=(id,lbl)=><button onClick={()=>setTab(id)} style={{padding:"7px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:tab===id?"#e11d48":"transparent",color:tab===id?"white":"#6b7280"}}>{lbl}</button>;
 
   return(
-    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#f9fafb",fontSize:14,color:"#111",position:"relative"}}>
+    <div style={{fontFamily:"system-ui,sans-serif",minHeight:0,background:"#f9fafb",fontSize:14,color:"#111",position:"relative"}}>
       <style>{`@media(max-width:680px){.g2c{grid-template-columns:1fr!important}.mg{grid-template-columns:1fr!important}}`}</style>
 
       {/* HEADER */}
@@ -827,7 +827,7 @@ function App(){
 
       {/* PRINT OVERLAY */}
       {printContent&&(
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",flexDirection:"column",minHeight:"100%"}}>
           <div style={{background:printContent.reviewMode?"#fef9c3":"#111827",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,position:"sticky",top:0,zIndex:101}}>
             <div style={{fontWeight:700,color:printContent.reviewMode?"#78350f":"white",fontSize:14}}>{printContent.reviewMode?"👁️ Review Draft — Internal":"🖨️ Client Quote Preview"}</div>
             <div style={{display:"flex",gap:8}}>
@@ -1014,7 +1014,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(
 </script>
 <script>
 (function(){
-  function post(){var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);try{parent.postMessage({__vtFrameHeight:h},"*");}catch(e){}}
+  var last=0;
+  function post(){
+    var h=Math.max(document.body.scrollHeight,document.body.offsetHeight,document.documentElement.scrollHeight);
+    if(Math.abs(h-last)>2){last=h;try{parent.postMessage({__vtFrameHeight:h},"*");}catch(e){}}
+  }
   window.addEventListener("load",post);window.addEventListener("resize",post);
   if(window.ResizeObserver){new ResizeObserver(post).observe(document.body);}
   setInterval(post,800);
