@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Veisluþjónusta Suðurlands — Reykjaböð Partner Portal</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;font-size:14px;color:#111;background:#f0f9ff;}
+input,select,textarea{font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+
+// ── CONFIG ────────────────────────────────────────────────────
+const PARTNER_NAME   = "Reykjaböð";
+const PARTNER_EMAIL  = "info@reykjabod.is";
+const SUPPLIER_NAME  = "Veisluþjónusta Suðurlands";
+const SUPPLIER_PHONE = "+354 451-3320";
+const CATERING_PHONE = "+354 864-3237"; // direct catering line — short notice approvals
+const SUPPLIER_EMAIL = "info@frokenselfoss.is";
+const SUPPLIER_WEB   = "frokenselfoss.is";
+const COOP_DISC = 0.12;
+const VAT       = 0.11;
+const EMAILJS   = { serviceId:"YOUR_SERVICE_ID", templateId:"YOUR_TEMPLATE_ID", publicKey:"YOUR_PUBLIC_KEY" };
+
+// ── PRICING ───────────────────────────────────────────────────
+// All prices INCLUSIVE of 11% VAT
+// tiers: { minimumGuests: pricePerPax }
+const MENUS = [
+  { id:"pinna",  icon:"🥢", name:"Pinnaveisla",
+    desc:"8 types of skewers · 12 units per person · The signature pin party",
+    web:"https://www.frokenselfoss.is/en/pinnaveisla",
+    tiers:{ 0:7990, 10:7490, 20:7190, 30:6990, 40:6590, 60:5990, 80:5690, 100:5490, 130:5190, 160:4990, 200:4490 },
+    min:10, hasVeg:true, hasVegan:false, allergens:["gluten","dairy","eggs","nuts"] },
+  { id:"bistro", icon:"🍽️", name:"Bístró smáréttir",
+    desc:"8 types bistro-style · 10 units per person · Great for drinks receptions",
+    web:"https://www.frokenselfoss.is/en/bistro",
+    tiers:{ 0:6990, 10:6490, 20:6190, 30:5990, 40:5590, 60:5190, 80:4990, 100:4790, 130:4490, 160:4290, 200:3990 },
+    min:10, hasVeg:true, hasVegan:false, allergens:["gluten","dairy","eggs"] },
+  { id:"snarl",  icon:"🥡", name:"Snarl pinni",
+    desc:"4 types · 6 units per person · Pre-dinner snacks or drinks reception",
+    web:"https://www.frokenselfoss.is/en/snarl",
+    tiers:{ 0:4490, 10:4190, 20:3990, 30:3690, 40:3490, 60:3190, 80:3090, 100:2990, 130:2790, 160:2690, 200:2490 },
+    min:10, hasVeg:true, hasVegan:false, allergens:["gluten","dairy"] },
+  { id:"soup",   icon:"🍲", name:"Súpuhlaðborð",
+    desc:"Simple soup buffet with bread and sides",
+    web:"https://www.frokenselfoss.is",
+    tiers:{ 0:4290, 10:3990, 20:3790, 30:3490, 40:3290, 60:2990, 80:2790, 100:2690, 130:2590, 160:2490, 200:2290 },
+    min:10, hasVeg:true, hasVegan:true, allergens:["gluten","dairy"] },
+  { id:"steak",  icon:"🥩", name:"Steikarhlaðborð",
+    desc:"Steak buffet with carved meat, roasted potatoes and fresh salads",
+    web:"https://www.frokenselfoss.is",
+    tiers:{ 0:6990, 10:6490, 20:6190, 30:5990, 40:5590, 60:5290, 80:5090, 100:4790, 130:4490, 160:4290, 200:3990 },
+    min:10, hasVeg:false, hasVegan:false, allergens:["gluten","dairy","eggs"] },
+  { id:"burger", icon:"🍔", name:"Burger Party",
+    desc:"Groovís food truck burgers with sides",
+    web:"https://www.frokenselfoss.is",
+    tiers:{ 0:4790, 10:4490, 20:4190, 30:3990, 40:3790, 60:3490, 80:3290, 100:3190, 130:3090, 160:2990, 200:2790 },
+    min:10, hasVeg:true, hasVegan:false, allergens:["gluten","dairy","eggs"] },
+];
+
+// Standard list price — what any client pays at this guest count
+function getListPrice(menu, guests) {
+  const entries = Object.entries(menu.tiers).map(([k,v])=>({min:Number(k),price:v})).sort((a,b)=>b.min-a.min);
+  return entries.find(t => guests >= t.min).price;
+}
+
+// Reykjadalur's cost from Veisluþjónusta Suðurlands — ALWAYS minimum 30-tier, minus 12% co-op.
+// Even if they order for 10 pax, we produce it at batch scale alongside other orders.
+// Their cost floor is always the 30-pax tier — giving them ~19% margin on small groups.
+function getCoopCost(menu, guests) {
+  const eff = Math.max(guests, 30);
+  const entries = Object.entries(menu.tiers).map(([k,v])=>({min:Number(k),price:v})).sort((a,b)=>b.min-a.min);
+  return Math.round(entries.find(t => eff >= t.min).price * (1 - COOP_DISC));
+}
+
+// ── ICELANDIC PUBLIC HOLIDAYS (VR collective agreement) ───────
+// MAJOR public holidays (stórhátíðardagar) → 15% surcharge on co-op cost
+// REGULAR public holidays (frídagar) → notification only, no surcharge
+function getEaster(Y){const a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;return new Date(Y,mo-1,dy);}
+
+function getHolidayMap(year){
+  const e=getEaster(year),add=(d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r;},s=d=>d.toISOString().slice(0,10);
+  const aug1=new Date(year,7,1),commerce=new Date(year,7,1+((8-aug1.getDay())%7||7));
+  const apr19=new Date(year,3,19),summer=new Date(year,3,19+((4-apr19.getDay()+7)%7||7));
+  // major: true = stórhátíðardagur (surcharge applies), false = frídagur (flag only)
+  return {
+    [`${year}-01-01`]: {name:"🎉 Nýársdagur",          major:true},
+    [s(add(e,-3))]:    {name:"✝️ Skírdagur",            major:false},
+    [s(add(e,-2))]:    {name:"✝️ Föstudagurinn langi",  major:true},
+    [s(e)]:            {name:"✝️ Páskadagur",           major:true},
+    [s(add(e,1))]:     {name:"✝️ Annar í páskum",       major:false},
+    [s(summer)]:       {name:"🌸 Sumardagurinn fyrsti",  major:false},
+    [`${year}-05-01`]: {name:"👷 Verkalýðsdagurinn",    major:false},
+    [s(add(e,39))]:    {name:"✝️ Uppstigningardagur",   major:false},
+    [s(add(e,49))]:    {name:"✝️ Hvítasunnudagur",      major:true},
+    [s(add(e,50))]:    {name:"✝️ Annar í hvítasunnu",   major:false},
+    [`${year}-06-17`]: {name:"🇮🇸 Þjóðhátíðardagurinn", major:true},
+    [s(commerce)]:     {name:"🛍️ Frídagur verslunarmanna", major:true},
+    [`${year}-12-24`]: {name:"🎄 Aðfangadagur",         major:true},
+    [`${year}-12-25`]: {name:"🎄 Jóladagur",            major:true},
+    [`${year}-12-26`]: {name:"🎄 Annar í jólum",        major:false},
+    [`${year}-12-31`]: {name:"🥂 Gamlársdagur",         major:true},
+  };
+}
+
+// Returns {name, major} or null
+function checkHoliday(dateStr){
+  if(!dateStr)return null;
+  const year=new Date(dateStr+"T12:00:00").getFullYear();
+  return getHolidayMap(year)[dateStr]||null;
+}
+
+// Returns the holiday on the following day, or null — for eve-of-holiday warning
+function checkEveOfHoliday(dateStr){
+  if(!dateStr) return null;
+  const d = new Date(dateStr+"T12:00:00");
+  d.setDate(d.getDate()+1);
+  const nextStr = d.toISOString().slice(0,10);
+  return getHolidayMap(d.getFullYear())[nextStr] || null;
+}
+
+const HOLIDAY_SURCHARGE = 0.15; // 15% added to co-op cost on major public holidays
+
+// ── FAQ ───────────────────────────────────────────────────────
+const FAQS=[
+  {q:"A guest has a food allergy — what do I do?",a:"Note all allergies clearly in the order notes before sending. For severe or anaphylactic allergies (nuts, shellfish), contact Veisluþjónusta Suðurlands directly before confirming. We cannot guarantee a fully allergen-free environment but will adapt where possible."},
+  {q:"Can we accommodate vegetarians?",a:"Yes. Most menus include vegetarian options by default. Note the number of vegetarian guests in the order notes — no extra charge for standard vegetarian adaptation. The soup buffet is fully vegetarian-friendly."},
+  {q:"Can we accommodate vegans?",a:"Vegan adaptation is possible for the soup buffet. For other menus, contact Veisluþjónusta Suðurlands directly if more than 20% of guests are vegan. Note vegan guests in the order regardless."},
+  {q:"What about gluten intolerance / coeliac?",a:"Some items can be adapted gluten-free. Note clearly in the order. For diagnosed coeliac disease, contact Veisluþjónusta Suðurlands directly before confirming — this requires extra kitchen protocols."},
+  {q:"What is included in the price?",a:"Food service only. Veisluþjónusta Suðurlands provides the food and appropriate serving equipment. Reykjadalur provides plates and cutlery. Bar, drinks and table service are Reykjadalur's responsibility."},
+  {q:"Can guests see the full menu before booking?",a:"Yes — direct them to frokenselfoss.is for full menu descriptions, photos and ingredient information."},
+  {q:"What is the minimum group size?",a:"Minimum 10 guests. For groups under 30, your purchasing cost from us is pegged to the 30-pax tier — this reflects batch production (your order runs alongside others). The result: you actually get better margin on small groups, since guests pay the standard list price for their tier while you pay the batched 30-pax rate."},
+  {q:"How far in advance must we order?",a:`Standard is 48 hours for groups under 30, and 7 days for groups of 30 or more. If your event falls within these windows, call the catering line directly on ${CATERING_PHONE} to confirm availability before sending a quote to guests. Short notice is sometimes possible — but confirmation is required first.`},
+  {q:"What if the guest count changes after we order?",a:"More guests: call Veisluþjónusta Suðurlands immediately — we will adapt and figure it out. Fewer guests: if prep has not started, changes are possible. Once prep has started (within 48 hours of the event), the count is locked and the full ordered quantity is charged."},
+  {q:"Are children counted as guests?",a:"Children aged 12 and over are counted as full guests. Children under 12 should be noted separately. Contact Veisluþjónusta Suðurlands for children's pricing."},
+  {q:"What happens on public holidays?",a:"There are two types of public holidays in Iceland per the VR collective agreement. Regular public holidays (frídagar — e.g. Skírdagur, Verkalýðsdagurinn, Sumardagurinn fyrsti) carry higher labour costs (×1.45) but no surcharge is passed to you — just a heads-up flag. Major public holidays (stórhátíðardagar — e.g. Nýársdagur, Jóladagur, 17. júní, Föstudagurinn langi) carry significantly higher labour costs (×1.90) and a 15% surcharge is automatically added to your purchasing price. Whether you pass any of this on to your guests is your decision."},
+  {q:"Something is wrong with my order — who do I call?",a:`Call Veisluþjónusta Suðurlands directly: ${SUPPLIER_PHONE}. For non-urgent questions email ${SUPPLIER_EMAIL}. Do not wait — production starts 48 hours before your event.`},
+];
+
+const fmt = n => Math.round(Number(n)).toLocaleString("is-IS") + " kr";
+const genId = () => `RVK-${new Date().getFullYear()}-${Math.random().toString(36).slice(2,6).toUpperCase()}`;
+const dFmt = ts => new Date(ts).toLocaleDateString("en-GB");
+
+// ── APP ───────────────────────────────────────────────────────
+export default function App(){
+  const [menuId,      setMenuId]      = useState("pinna");
+  const [guests,      setGuests]      = useState(20);
+  const [evDate,      setEvDate]      = useState("");
+  const [evTime,      setEvTime]      = useState("");
+  const [servingTime, setServingTime] = useState("");
+  const [clientName,  setClientName]  = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientKt,    setClientKt]    = useState("");
+  const [invoiceRef,  setInvoiceRef]  = useState("");
+  const [invoiceAddr, setInvoiceAddr] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [notes,       setNotes]       = useState("");
+  const [markupPct,   setMarkupPct]   = useState(13);   // % above list price — the source of truth
+  const [qid] = useState(genId);
+  const [orders,      setOrders]      = useState([]);
+  const [modal,       setModal]       = useState(null);
+  const [status,      setStatus]      = useState(null);
+  const [printContent,setPrintContent]= useState(null);
+  const [printMode,   setPrintMode]   = useState("internal"); // "internal" | "customer"
+  const [openFaq,     setOpenFaq]     = useState(null);
+  const [showMenuInfo,setShowMenuInfo]= useState(false);
+  const [sendToCustomer, setSendToCustomer] = useState(true);
+  const printRef = useRef();
+
+  const menu      = MENUS.find(m => m.id === menuId);
+  const holidayInfo = checkHoliday(evDate);          // {name, major} | null
+  const holiday     = holidayInfo ? holidayInfo.name : null;   // string for display
+  const isMajorHoliday = holidayInfo ? holidayInfo.major : false;
+  const eveOfHoliday   = checkEveOfHoliday(evDate); // {name, major} | null — day after is a holiday
+  const listPrice = getListPrice(menu, guests);
+  const coopCostBase = getCoopCost(menu, guests);
+  const coopCost  = isMajorHoliday ? Math.round(coopCostBase * (1 + HOLIDAY_SURCHARGE)) : coopCostBase;
+
+  // guestPrice is derived from markupPct over listPrice, rounded to nearest 10
+  const guestPrice    = Math.round(listPrice * (1 + markupPct / 100) / 10) * 10;
+  const coopCostTotal = coopCost * guests;
+  const coopCostExVAT = Math.round(coopCostTotal / (1 + VAT));
+  const coopCostVATAmt= coopCostTotal - coopCostExVAT;
+  const guestTotal    = guestPrice * guests;
+  const markupKr      = guestPrice - listPrice;
+  const marginKr      = guestPrice - coopCost;
+  const marginPct     = guestPrice > 0 ? ((marginKr / guestPrice) * 100).toFixed(1) : 0;
+  const marginColor   = Number(marginPct) >= 15 ? "#15803d" : Number(marginPct) >= 8 ? "#d97706" : "#dc2626";
+  const builtInMarginPct = ((listPrice - coopCost) / listPrice * 100).toFixed(1);
+
+  // Short-notice warning: <30 pax within 48h, or 30+ pax within 7 days
+  const shortNotice = (() => {
+    if(!evDate) return null;
+    const timeStr = evTime || "12:00";
+    const event = new Date(`${evDate}T${timeStr}:00`);
+    const now = new Date();
+    const hoursUntil = (event - now) / (1000 * 60 * 60);
+    if(guests < 30 && hoursUntil >= 0 && hoursUntil < 48) return "under48";
+    if(guests >= 30 && hoursUntil >= 0 && hoursUntil < 168) return "under7days";
+    return null;
+  })();
+
+  useEffect(() => { loadOrders(); }, []);
+
+  async function loadOrders(){
+    try{const r=await window.storage.list("ro:");if(!r?.keys?.length)return;const os=[];for(const k of r.keys){try{const x=await window.storage.get(k);if(x)os.push(JSON.parse(x.value));}catch{}}setOrders(os.sort((a,b)=>b.ts-a.ts));}catch{}
+  }
+
+  async function sendOrder(){
+    setStatus("sending");
+    const order={id:qid,ts:Date.now(),menuName:menu.name,menuId,guests,evDate,evTime,servingTime,clientName,clientEmail,clientPhone,clientKt,invoiceRef,invoiceAddr,contactName,notes,holiday,isMajorHoliday,listPrice,coopCost,coopCostTotal,coopCostExVAT,coopCostVATAmt,guestPrice,guestTotal,marginKr,marginPct,markupPct};
+    try{
+      await window.storage.set(`ro:${qid}`,JSON.stringify(order));
+      try{await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:EMAILJS.serviceId,template_id:EMAILJS.templateId,user_id:EMAILJS.publicKey,template_params:{order_id:qid,partner:PARTNER_NAME,contact:contactName||"–",menu:menu.name,guests,event_date:evDate||"TBD",client:clientName||"–",client_email:clientEmail||"–",client_phone:clientPhone||"–",coop_total:fmt(coopCostTotal),guest_total:fmt(guestTotal),holiday:holiday||"No",notes:notes||"–",send_to_customer:sendToCustomer?"Yes":"No"}})});}catch{}
+      await loadOrders();setStatus("sent");setModal("confirm");
+    }catch{setStatus("error");}
+    setTimeout(()=>setStatus(null),4000);
+  }
+
+  // Internal PDF — shows all partner pricing, co-op cost, margin
+  function buildOrderHTML(o){
+    const m=MENUS.find(x=>x.id===o.menuId);
+    const guestTotalVal = (o.guestPrice||0)*(o.guests||0);
+    const profitVal = guestTotalVal - (o.coopCostTotal||0);
+    return`<html><head><style>body{font-family:Georgia,serif;color:#111;max-width:620px;margin:36px auto;padding:0 20px;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:16px}.badge{background:#fef9c3;border:1px solid #ca8a04;color:#92400e;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700}.hbadge{background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;margin-top:4px;display:block}table{width:100%;border-collapse:collapse;margin:10px 0}td{padding:6px 0;border-bottom:1px solid #f3f4f6}.lbl{color:#6b7280;width:55%}.tot td{border-top:2px solid #111;border-bottom:none;font-size:16px;font-weight:700;padding-top:10px}.sect{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin:14px 0 6px}.internal{background:#fef9c3;border:1px solid #ca8a04;border-radius:6px;padding:10px 12px;margin:16px 0;font-size:12px}@media print{body{margin:16px}}</style></head><body>
+    <div class="hdr"><div><div style="font-size:20px;font-weight:700">${SUPPLIER_NAME}</div><div style="font-size:12px;color:#6b7280">Partner Order · ${PARTNER_NAME}</div><div style="font-size:11px;color:#aaa">Brúartorg, Selfoss · ${SUPPLIER_PHONE} · ${SUPPLIER_WEB}</div></div>
+    <div style="text-align:right"><span class="badge">INTERNAL — PARTNER COPY</span>${o.holiday?`<span class="hbadge">⚠️ PUBLIC HOLIDAY</span>`:""}<div style="font-size:15px;font-weight:700;margin-top:6px">${o.id}</div><div style="font-size:11px;color:#aaa">${dFmt(o.ts)}</div></div></div>
+    <div class="sect">Event details</div>
+    <table><tr><td class="lbl">Event date</td><td><strong>${o.evDate||"TBD"}${o.evTime?` at ${o.evTime}`:""}${o.servingTime?` · Serving: ${o.servingTime}`:""}${o.holiday?` — ⚠️ ${o.holiday}`:""}</strong></td></tr><tr><td class="lbl">Menu</td><td><strong>${m?m.name:o.menuName}</strong></td></tr><tr><td class="lbl">Guests</td><td><strong>${o.guests} pax</strong></td></tr></table>
+    <div class="sect">Guest / client</div>
+    <table><tr><td class="lbl">Name</td><td>${o.clientName||"–"}</td></tr>${o.clientEmail?`<tr><td class="lbl">Email</td><td>${o.clientEmail}</td></tr>`:""} ${o.clientPhone?`<tr><td class="lbl">Phone</td><td>${o.clientPhone}</td></tr>`:""} ${o.clientKt?`<tr><td class="lbl">Kennitala</td><td>${o.clientKt}</td></tr>`:""} ${o.invoiceRef?`<tr><td class="lbl">Invoice reference</td><td>${o.invoiceRef}</td></tr>`:""} ${o.invoiceAddr?`<tr><td class="lbl">Invoice address</td><td>${o.invoiceAddr}</td></tr>`:""}</table>
+    <div class="sect">Order placed by</div><p style="margin:0 0 12px">${o.contactName||"–"} · ${PARTNER_NAME}</p>
+    ${o.notes?`<div class="sect">Notes / dietary requirements</div><p style="margin:0 0 12px;padding:8px 10px;background:#f9fafb;border-radius:6px">${o.notes}</p>`:""}
+    <div class="sect">Your cost — Invoice from ${SUPPLIER_NAME}</div>
+    <table><tr><td class="lbl">Purchasing price per person (incl. VAT)</td><td>${fmt(o.coopCost)}</td></tr><tr><td class="lbl">Subtotal ex. VAT</td><td>${fmt(o.coopCostExVAT)}</td></tr><tr><td class="lbl">VAT 11%</td><td>${fmt(o.coopCostVATAmt)}</td></tr><tr class="tot"><td>Total you pay ${SUPPLIER_NAME}</td><td style="text-align:right">${fmt(o.coopCostTotal)}</td></tr></table>
+    <div class="internal"><strong>📊 Margin summary</strong><br/>List price: ${fmt(o.listPrice)}/pax · Your price: ${fmt(o.guestPrice)}/pax · Markup: +${o.markupPct||0}% on list${o.isMajorHoliday?` · <span style="color:#dc2626">+15% major holiday surcharge included in cost</span>`:""}<br/>Guest revenue: ${fmt(guestTotalVal)} · Your cost: ${fmt(o.coopCostTotal)} · <strong>Profit: +${fmt(profitVal)} (${o.marginPct}% margin)</strong></div>
+    <p style="font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">Partner wholesale rate — 12% co-op discount applied.<br>Payment: invoice within 7 days of event. Cancellation within 48h: full charge. 3–7 days: 50%. 7+ days: free.<br>Contact ${SUPPLIER_PHONE} for changes or clarifications.</p>
+    <script>window.onload=()=>window.print()</script></body></html>`;
+  }
+
+  // Customer-facing PDF — clean quote, no backend pricing
+  function buildCustomerHTML(o){
+    const m=MENUS.find(x=>x.id===o.menuId);
+    const guestTotalVal = (o.guestPrice||0)*(o.guests||0);
+    const exVAT = Math.round(guestTotalVal/(1+VAT));
+    const vatAmt = guestTotalVal - exVAT;
+    return`<html><head><style>body{font-family:Georgia,serif;color:#111;max-width:620px;margin:36px auto;padding:0 20px;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #0c4a6e;padding-bottom:14px;margin-bottom:16px}table{width:100%;border-collapse:collapse;margin:10px 0}td{padding:7px 0;border-bottom:1px solid #f3f4f6}.lbl{color:#6b7280;width:55%}.tot td{border-top:2px solid #0c4a6e;border-bottom:none;font-size:16px;font-weight:700;padding-top:10px}.sect{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0369a1;margin:16px 0 6px}@media print{body{margin:16px}}</style></head><body>
+    <div class="hdr"><div><div style="font-size:22px;font-weight:700;color:#0c4a6e">${PARTNER_NAME}</div><div style="font-size:13px;color:#6b7280;margin-top:3px">Catering Quote</div></div>
+    <div style="text-align:right">${o.holiday?`<div style="background:#fef2f2;border:1px solid #fca5a5;color:#dc2626;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;margin-bottom:4px">⚠️ PUBLIC HOLIDAY</div>`:""}<div style="font-size:15px;font-weight:700;color:#0c4a6e">${o.id}</div><div style="font-size:11px;color:#aaa">${dFmt(o.ts)}</div></div></div>
+    <div class="sect">Event details</div>
+    <table><tr><td class="lbl">Event date</td><td><strong>${o.evDate||"TBD"}${o.evTime?` at ${o.evTime}`:""}${o.servingTime?` · Serving: ${o.servingTime}`:""}${o.holiday?` — ⚠️ ${o.holiday}`:""}</strong></td></tr><tr><td class="lbl">Menu</td><td><strong>${m?m.name:o.menuName}</strong></td></tr><tr><td class="lbl">Number of guests</td><td><strong>${o.guests} persons</strong></td></tr></table>
+    ${o.clientName?`<div class="sect">Prepared for</div><table><tr><td class="lbl">Name</td><td>${o.clientName}</td></tr>${o.clientEmail?`<tr><td class="lbl">Email</td><td>${o.clientEmail}</td></tr>`:""} ${o.clientPhone?`<tr><td class="lbl">Phone</td><td>${o.clientPhone}</td></tr>`:""} ${o.clientKt?`<tr><td class="lbl">Kennitala</td><td>${o.clientKt}</td></tr>`:""} ${o.invoiceRef?`<tr><td class="lbl">Invoice reference</td><td>${o.invoiceRef}</td></tr>`:""} ${o.invoiceAddr?`<tr><td class="lbl">Invoice address</td><td>${o.invoiceAddr}</td></tr>`:""}</table>`:""}
+    ${o.notes?`<div class="sect">Notes & dietary requirements</div><p style="margin:0 0 12px;padding:8px 10px;background:#f0f9ff;border-radius:6px;font-size:12px">${o.notes}</p>`:""}
+    <div class="sect">Pricing</div>
+    <table><tr><td class="lbl">Price per person (incl. VAT)</td><td><strong>${fmt(o.guestPrice)}</strong></td></tr><tr><td class="lbl">Subtotal ex. VAT (${o.guests} persons)</td><td>${fmt(exVAT)}</td></tr><tr><td class="lbl">VAT 11%</td><td>${fmt(vatAmt)}</td></tr><tr class="tot"><td>Total incl. VAT</td><td style="text-align:right;color:#0c4a6e">${fmt(guestTotalVal)}</td></tr></table>
+    <p style="font-size:12px;color:#6b7280;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:12px;line-height:1.7">This quote is prepared by ${PARTNER_NAME}. Catering provided by ${SUPPLIER_NAME}, Brúartorg, Selfoss.<br>Quote valid 7 days. Minimum 48h notice required. For questions contact ${PARTNER_NAME}.</p>
+    <script>window.onload=()=>window.print()</script></body></html>`;
+  }
+
+  function openPrint(o, mode="internal"){setPrintMode(mode);setPrintContent(mode==="customer"?buildCustomerHTML(o):buildOrderHTML(o));}
+  function doPrint(){const iframe=printRef.current?.querySelector("iframe");if(iframe?.contentWindow){iframe.contentWindow.focus();iframe.contentWindow.print();}}
+  const canSend = guests>=10 && evDate && evTime && (status===null||status==="error");
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#f0f9ff",fontSize:14,color:"#111"}}>
+
+      {/* HEADER */}
+      <div style={{background:"#0c4a6e",color:"white",padding:"18px 20px 14px"}}>
+        <div style={{maxWidth:640,margin:"0 auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
+            <div>
+              <div style={{fontSize:11,color:"#7dd3fc",fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:2}}>Partner Portal</div>
+              <div style={{fontSize:22,fontWeight:700,letterSpacing:"-0.3px"}}>{PARTNER_NAME}</div>
+              <div style={{fontSize:12,color:"#bae6fd",marginTop:2}}>Catering orders from {SUPPLIER_NAME}</div>
+            </div>
+            <button onClick={()=>setModal("history")} style={{background:"rgba(255,255,255,0.12)",color:"white",border:"1px solid rgba(255,255,255,0.2)",borderRadius:8,padding:"6px 12px",fontSize:12,cursor:"pointer",fontWeight:600}}>
+              📋 Order History{orders.length>0&&<span style={{background:"#e11d48",borderRadius:20,padding:"1px 6px",fontSize:10,marginLeft:4}}>{orders.length}</span>}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:640,margin:"0 auto",padding:"16px 16px 40px"}}>
+
+        {/* STEP 1 — MENU */}
+        <Step n="1" title="Select menu">
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {MENUS.map(m=>{
+              const lp=getListPrice(m,guests), cc=getCoopCost(m,guests);
+              const sel=menuId===m.id;
+              return(
+                <div key={m.id} onClick={()=>setMenuId(m.id)} style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:10,border:`2px solid ${sel?"#0284c7":"#e5e7eb"}`,background:sel?"#f0f9ff":"white",cursor:"pointer"}}>
+                  <span style={{fontSize:22,marginTop:1}}>{m.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:14}}>{m.name}</div>
+                    <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>{m.desc}</div>
+                    <div style={{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}}>
+                      {m.hasVeg&&<Tag c="#059669" bg="#d1fae5">🥦 Veg option</Tag>}
+                      {m.hasVegan&&<Tag c="#065f46" bg="#a7f3d0">🌱 Vegan option</Tag>}
+                      {!m.hasVeg&&<Tag c="#9ca3af" bg="#f3f4f6">⚠️ No veg — note in order</Tag>}
+                      <a href={m.web} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:"#e0f2fe",color:"#0284c7",fontWeight:600,textDecoration:"none"}}>🔗 Full menu</a>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:10,color:"#9ca3af"}}>guest price</div>
+                    <div style={{fontWeight:700,color:"#374151",fontSize:14}}>{fmt(lp)}</div>
+                    <div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>your cost</div>
+                    <div style={{fontWeight:700,color:"#0284c7",fontSize:13}}>{fmt(cc)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Step>
+
+        {/* STEP 2 — GUESTS */}
+        <Step n="2" title="Guest count">
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:10}}>
+            <div style={{flex:1}}>
+              <input type="range" min={10} max={110} value={guests} onChange={e=>setGuests(Number(e.target.value))} style={{width:"100%",accentColor:"#0284c7"}}/>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9ca3af",marginTop:2}}><span>10</span><span>40</span><span>70</span><span>110</span></div>
+            </div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <SB onClick={()=>setGuests(Math.max(10,guests-1))}>−</SB>
+              <input type="number" min={10} max={200} value={guests} onChange={e=>setGuests(Math.max(10,Math.min(200,Number(e.target.value))))} style={{width:60,textAlign:"center",border:"1px solid #e5e7eb",borderRadius:8,padding:4,fontSize:20,fontWeight:700,outline:"none"}}/>
+              <SB onClick={()=>setGuests(Math.min(200,guests+1))}>+</SB>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+            {[10,15,20,25,30,40,50,70,100].map(n=>(
+              <button key={n} onClick={()=>setGuests(n)} style={{padding:"4px 12px",borderRadius:20,border:`1px solid ${guests===n?"#0284c7":"#e5e7eb"}`,background:guests===n?"#0284c7":"white",color:guests===n?"white":"#6b7280",fontSize:12,fontWeight:600,cursor:"pointer"}}>{n}</button>
+            ))}
+          </div>
+          {/* Clear two-line breakdown */}
+          <div style={{background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:10,padding:"12px 14px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <div style={{fontSize:10,color:"#9ca3af",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Standard guest price</div>
+                <div style={{fontSize:18,fontWeight:700,color:"#374151"}}>{fmt(listPrice)}</div>
+                <div style={{fontSize:11,color:"#6b7280"}}>What guests pay · {guests<10?"1–9 pax tier":guests<20?"10–19 pax tier":guests<30?"20–29 pax tier":guests<40?"30–39 pax tier":guests<60?"40–59 pax tier":guests<80?"60–79 pax tier":guests<100?"80–99 pax tier":guests<130?"100–129 pax tier":guests<160?"130–159 pax tier":"160+ pax tier"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:"#0369a1",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:3}}>Your cost from us</div>
+                <div style={{fontSize:18,fontWeight:700,color:"#0284c7"}}>{fmt(coopCost)}</div>
+                <div style={{fontSize:11,color:"#6b7280"}}>{guests<30?"30-pax tier (batch rate — your margin advantage)":"Same tier as guests"} · −12% co-op discount</div>
+              </div>
+            </div>
+            <div style={{marginTop:10,borderTop:"1px solid #bae6fd",paddingTop:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:12,color:"#0369a1"}}>Built-in margin at standard price</div>
+              <div style={{fontSize:16,fontWeight:700,color:Number(builtInMarginPct)>=15?"#15803d":"#0369a1"}}>{builtInMarginPct}%</div>
+            </div>
+          </div>
+        </Step>
+
+        {/* STEP 3 — EVENT DETAILS */}
+        <Step n="3" title="Event details">
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <F label="Event date *">
+              <input type="date" value={evDate} onChange={e=>setEvDate(e.target.value)} style={{...I,borderColor:!evDate?"#fca5a5":undefined}}/>
+            </F>
+            <F label="Event time *">
+              <input type="time" value={evTime} onChange={e=>setEvTime(e.target.value)} style={{...I,borderColor:!evTime?"#fca5a5":undefined}}/>
+            </F>
+            <F label="Serving time">
+              <input type="time" value={servingTime} onChange={e=>setServingTime(e.target.value)} style={I} placeholder="When should food be ready?"/>
+            </F>
+          </div>
+          {(!evDate||!evTime)&&<div style={{marginTop:6,fontSize:11,color:"#dc2626"}}>⚠️ {!evDate&&!evTime?"Event date and time are required":!evDate?"Event date is required":"Event time is required"} to send.</div>}
+          {holidayInfo&&(
+            <div style={{marginTop:8,background:isMajorHoliday?"#fef2f2":"#fffbeb",border:`2px solid ${isMajorHoliday?"#fca5a5":"#fcd34d"}`,borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontWeight:700,color:isMajorHoliday?"#dc2626":"#92400e",marginBottom:4}}>
+                {isMajorHoliday?"🔴 Stórhátíðardagur":"🟡 Almennur frídagur"} — {holiday}
+              </div>
+              {isMajorHoliday?(
+                <>
+                  <div style={{fontSize:12,color:"#7f1d1d",marginBottom:8,lineHeight:1.6}}>
+                    This is a major public holiday (stórhátíðardagur). Labour costs are significantly higher on this date (×1.90 per VR collective agreement). A <strong>15% surcharge</strong> has been automatically added to your purchasing price from us. Whether you pass this on to guests is your call.
+                  </div>
+                  <div style={{background:"#fee2e2",borderRadius:7,padding:"8px 10px",fontSize:12,marginBottom:8,display:"flex",justifyContent:"space-between"}}>
+                    <span style={{color:"#991b1b"}}>Base cost</span><span style={{fontWeight:700,color:"#991b1b"}}>{fmt(coopCostBase)}/pax</span>
+                    <span style={{color:"#991b1b",margin:"0 6px"}}>+</span>
+                    <span style={{color:"#991b1b"}}>Holiday surcharge (15%)</span><span style={{fontWeight:700,color:"#dc2626"}}>+{fmt(Math.round(coopCostBase*HOLIDAY_SURCHARGE))}/pax</span>
+                    <span style={{color:"#991b1b",margin:"0 6px"}}>=</span>
+                    <span style={{color:"#991b1b"}}>Your cost</span><span style={{fontWeight:700,color:"#dc2626"}}>{fmt(coopCost)}/pax</span>
+                  </div>
+                  <div style={{fontSize:11,color:"#7f1d1d",marginBottom:8}}>Quick-fill if you want to pass the surcharge to guests:</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {[15,20].map(p=>{
+                      const sug=Math.round(listPrice*(1+p/100)/10)*10;
+                      return <button key={p} onClick={()=>setMarkupPct(p)} style={{flex:1,padding:"8px",border:"1px solid #fca5a5",borderRadius:8,background:"white",cursor:"pointer",fontWeight:600,fontSize:12,color:"#dc2626"}}>
+                        +{p}% above list<div style={{fontSize:11,color:"#6b7280",fontWeight:400}}>{fmt(sug)}/pax</div>
+                      </button>;
+                    })}
+                  </div>
+                </>
+              ):(
+                <div style={{fontSize:12,color:"#78350f",lineHeight:1.6}}>
+                  This is a public holiday (frídagur). Labour costs are higher on this date (×1.45 per VR collective agreement). <strong>No surcharge</strong> is added to your cost from us — just a heads-up so you can decide if you want to adjust your guest price.
+                </div>
+              )}
+            </div>
+          )}
+          {eveOfHoliday&&(
+            <div style={{marginTop:8,background:"#fefce8",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontWeight:700,color:"#92400e",marginBottom:4}}>
+                🟠 Eve of public holiday — {eveOfHoliday.name}
+              </div>
+              <div style={{fontSize:12,color:"#78350f",lineHeight:1.6}}>
+                The day after this event is a {eveOfHoliday.major ? "major public holiday (stórhátíðardagur)" : "public holiday (frídagur)"}. No surcharge applies to this date — heads-up only. You will likely be busy this evening as the day after is a day off, so consider that when adjusting your margins for this group.
+              </div>
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:8}}>
+            <F label="Your name (staff placing order)"><input type="text" placeholder="Your name" value={contactName} onChange={e=>setContactName(e.target.value)} style={I}/></F>
+            <F label="Guest / group name"><input type="text" placeholder="Guest or booking name" value={clientName} onChange={e=>setClientName(e.target.value)} style={I}/></F>
+            <F label="Guest email"><input type="email" placeholder="guest@email.com" value={clientEmail} onChange={e=>setClientEmail(e.target.value)} style={I}/></F>
+            <F label="Guest phone"><input type="tel" placeholder="+354 xxx xxxx" value={clientPhone} onChange={e=>setClientPhone(e.target.value)} style={I}/></F>
+            <F label="Kennitala"><input type="text" placeholder="000000-0000" value={clientKt} onChange={e=>setClientKt(e.target.value)} style={I}/></F>
+            <F label="Booking / invoice reference"><input type="text" placeholder="Your internal ref." value={invoiceRef} onChange={e=>setInvoiceRef(e.target.value)} style={I}/></F>
+            <F label="Invoice address" span2><input type="text" placeholder="If different from guest address" value={invoiceAddr} onChange={e=>setInvoiceAddr(e.target.value)} style={I}/></F>
+            <F label="Notes / dietary requirements / allergies" span2>
+              <textarea rows={3} placeholder="List ALL allergies, dietary requirements (vegetarian, vegan, gluten-free), number of children, timing or other special needs. Be specific." value={notes} onChange={e=>setNotes(e.target.value)} style={{...I,resize:"vertical"}}/>
+            </F>
+          </div>
+        </Step>
+
+        {/* STEP 4 — GUEST PRICE */}
+        <Step n="4" title="Your guest price">
+          <div style={{fontSize:12,color:"#374151",marginBottom:12,padding:"8px 12px",background:"#f9fafb",borderRadius:8,lineHeight:1.6}}>
+            Set your markup above the <strong>list price</strong> ({fmt(listPrice)}/pax). Default is <strong>+13%</strong>. Your margin vs. your purchasing cost is shown below.
+          </div>
+
+          {/* Markup % input + quick set */}
+          <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:12,alignItems:"end",marginBottom:12}}>
+            <F label="Markup above list price">
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <input type="number" min={0} max={100} step={1} value={markupPct}
+                  onChange={e=>setMarkupPct(Math.max(0,Number(e.target.value)))}
+                  style={{width:70,textAlign:"center",border:"2px solid #0284c7",borderRadius:8,padding:"6px 4px",fontSize:22,fontWeight:700,outline:"none",color:"#0c4a6e"}}/>
+                <span style={{fontSize:18,fontWeight:700,color:"#6b7280"}}>%</span>
+              </div>
+            </F>
+            <F label="Quick set">
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {[0,5,10,13,15,20,25].map(p=>(
+                  <button key={p} onClick={()=>setMarkupPct(p)}
+                    style={{padding:"6px 10px",borderRadius:8,border:`2px solid ${markupPct===p?"#0284c7":"#e5e7eb"}`,background:markupPct===p?"#e0f2fe":"white",fontSize:12,fontWeight:700,cursor:"pointer",color:markupPct===p?"#0284c7":"#374151"}}>
+                    {p===0?"List":"+"+p+"%"}
+                  </button>
+                ))}
+              </div>
+            </F>
+          </div>
+
+          {/* Structured price breakdown */}
+          <div style={{border:"1px solid #e5e7eb",borderRadius:10,overflow:"hidden",marginBottom:guestPrice<=coopCost?12:0}}>
+            {/* Row 1: Purchasing price */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"white",borderBottom:"1px solid #f3f4f6"}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"#0369a1",textTransform:"uppercase",letterSpacing:"0.04em"}}>Your purchasing price</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>What you pay Veisluþjónusta Suðurlands · per person</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:700,fontSize:16,color:"#0284c7"}}>{fmt(coopCost)}</div>
+                <div style={{fontSize:10,color:"#9ca3af"}}>{fmt(coopCostTotal)} total</div>
+              </div>
+            </div>
+            {/* Row 2: List price */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"#fafafa",borderBottom:"1px solid #f3f4f6"}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.04em"}}>List price</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>Standard market rate at {guests} pax</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:700,fontSize:16,color:"#374151"}}>{fmt(listPrice)}</div>
+                <div style={{fontSize:10,color:"#9ca3af"}}>{fmt(listPrice*guests)} total</div>
+              </div>
+            </div>
+            {/* Row 3: Selling price + markup */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",background:"white",borderBottom:"1px solid #f3f4f6"}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"#374151",textTransform:"uppercase",letterSpacing:"0.04em"}}>Your selling price</div>
+                <div style={{fontSize:11,marginTop:1}}>
+                  {markupPct>=0
+                    ? <span style={{color:"#15803d",fontWeight:600}}>+{markupPct}% on list · +{fmt(markupKr)}/pax</span>
+                    : <span style={{color:"#dc2626",fontWeight:600}}>below list price</span>
+                  }
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:700,fontSize:16,color:"#111"}}>{fmt(guestPrice)}</div>
+                <div style={{fontSize:10,color:"#9ca3af"}}>{fmt(guestTotal)} total</div>
+              </div>
+            </div>
+            {/* Row 4: Total margin */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"13px 14px",background:Number(marginPct)>=13?"#f0fdf4":Number(marginPct)>=8?"#fffbeb":"#fef2f2"}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:marginColor,textTransform:"uppercase",letterSpacing:"0.04em"}}>Your total margin</div>
+                <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>Profit after paying Veisluþjónusta Suðurlands · {guests} guests</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:700,fontSize:20,color:marginColor}}>{marginPct}%</div>
+                <div style={{fontSize:13,fontWeight:700,color:marginColor}}>+{fmt(guestTotal-coopCostTotal)}</div>
+              </div>
+            </div>
+          </div>
+          {guestPrice<=coopCost&&(
+            <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#dc2626",fontWeight:600}}>
+              ⚠️ Guest price is below your purchasing cost. Increase markup above {fmt(coopCost)}/pax.
+            </div>
+          )}
+        </Step>
+
+        {/* ORDER SUMMARY + SEND */}
+        <div style={{background:"#0c4a6e",borderRadius:12,padding:"16px 18px",color:"white",marginTop:4}}>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:10,color:"#bae6fd"}}>Quote Summary</div>
+          <div style={{fontSize:13,marginBottom:3,display:"flex",justifyContent:"space-between"}}><span style={{color:"#bae6fd"}}>{menu.icon} {menu.name} · {guests} guests</span><span>{evDate?`${evDate}${evTime?` · ${evTime}`:""}` : "Date TBD"}</span></div>
+          {holiday&&<div style={{fontSize:12,color:isMajorHoliday?"#fca5a5":"#fde68a",marginBottom:4}}>{isMajorHoliday?"🔴":"🟡"} {holiday}{isMajorHoliday?" · +15% surcharge applied":""}</div>}
+          <div style={{fontSize:13,marginBottom:4,display:"flex",justifyContent:"space-between"}}><span style={{color:"#bae6fd"}}>Guest price</span><span style={{fontWeight:700}}>{fmt(guestPrice)}/pax · {fmt(guestTotal)} total</span></div>
+          <div style={{fontSize:13,marginBottom:4,display:"flex",justifyContent:"space-between"}}><span style={{color:"#bae6fd"}}>You pay Veisluþjónusta Suðurlands</span><span style={{fontWeight:700}}>{fmt(coopCostTotal)}</span></div>
+          {guestPrice>coopCost&&<div style={{fontSize:13,marginBottom:10,display:"flex",justifyContent:"space-between"}}><span style={{color:"#bae6fd"}}>Your profit</span><span style={{fontWeight:700,color:"#86efac"}}>+{fmt(guestTotal-coopCostTotal)} ({marginPct}%)</span></div>}
+
+          {/* Send-to options */}
+          <div style={{background:"rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 12px",marginBottom:10}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#7dd3fc",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Send quote to</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                {label:`Veisluþjónusta Suðurlands — ${SUPPLIER_EMAIL}`,fixed:true,checked:true},
+                {label:`${PARTNER_NAME} — ${PARTNER_EMAIL}`,fixed:true,checked:true},
+                {label:`Customer${clientEmail?` — ${clientEmail}`:" (add email in step 3)"}`,fixed:false,checked:sendToCustomer,disabled:!clientEmail},
+              ].map((r,i)=>(
+                <label key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,cursor:r.fixed||r.disabled?"default":"pointer",opacity:r.disabled?0.45:1}}>
+                  <input type="checkbox" checked={r.checked} disabled={r.fixed||r.disabled}
+                    onChange={i===2?e=>setSendToCustomer(e.target.checked):undefined}
+                    style={{width:15,height:15,accentColor:"#38bdf8",flexShrink:0}}/>
+                  <span style={{color:r.fixed?"#bae6fd":"white"}}>{r.label}</span>
+                  {r.fixed&&<span style={{fontSize:10,color:"#7dd3fc",background:"rgba(255,255,255,0.1)",padding:"1px 5px",borderRadius:4}}>always</span>}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {shortNotice&&(
+            <div style={{background:"#7c2d12",border:"2px solid #f97316",borderRadius:10,padding:"12px 14px",marginBottom:10}}>
+              <div style={{fontWeight:700,color:"#fed7aa",fontSize:13,marginBottom:6}}>
+                📞 Call first — short notice
+              </div>
+              <div style={{fontSize:12,color:"#ffedd5",lineHeight:1.7,marginBottom:10}}>
+                {shortNotice==="under48"
+                  ? <>This order is <strong>under 30 guests with less than 48 hours notice.</strong> Please call and confirm this is possible before sending a quote to guests.</>
+                  : <>This order is <strong>30 guests or more with less than 7 days notice.</strong> Please call and confirm this is possible before sending a quote to guests.</>
+                }
+              </div>
+              <a href={`tel:${CATERING_PHONE}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#f97316",color:"white",borderRadius:8,padding:"10px",fontWeight:700,fontSize:14,textDecoration:"none"}}>
+                📞 {CATERING_PHONE} — Catering direct line
+              </a>
+            </div>
+          )}
+
+          <button onClick={sendOrder} disabled={!canSend} style={{width:"100%",padding:"14px",borderRadius:10,border:"none",cursor:canSend?"pointer":"not-allowed",background:canSend?"#e11d48":"rgba(255,255,255,0.15)",color:"white",fontWeight:700,fontSize:15,opacity:canSend?1:0.6,marginBottom:8}}>
+            {status==="sending"?"Sending…":status==="sent"?"✓ Quote sent!":status==="error"?"Saved (email failed)":"📨 Generate & Send Quote"}
+          </button>
+
+          {/* PDF export buttons */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <button onClick={()=>{const o={id:qid,ts:Date.now(),menuName:menu.name,menuId,guests,evDate,evTime,servingTime,clientName,clientEmail,clientPhone,clientKt,invoiceRef,invoiceAddr,contactName,notes,holiday,isMajorHoliday,listPrice,coopCost,coopCostTotal,coopCostExVAT,coopCostVATAmt,guestPrice,guestTotal,marginKr,marginPct,markupPct};openPrint(o,"customer");}}
+              style={{padding:"9px",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,background:"rgba(255,255,255,0.1)",color:"white",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              📄 Customer quote PDF
+            </button>
+            <button onClick={()=>{const o={id:qid,ts:Date.now(),menuName:menu.name,menuId,guests,evDate,evTime,servingTime,clientName,clientEmail,clientPhone,clientKt,invoiceRef,invoiceAddr,contactName,notes,holiday,isMajorHoliday,listPrice,coopCost,coopCostTotal,coopCostExVAT,coopCostVATAmt,guestPrice,guestTotal,marginKr,marginPct,markupPct};openPrint(o,"internal");}}
+              style={{padding:"9px",border:"1px solid rgba(255,255,255,0.25)",borderRadius:8,background:"rgba(255,255,255,0.1)",color:"white",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              🔒 Internal order PDF
+            </button>
+          </div>
+          {(!evDate||!evTime)&&<div style={{fontSize:11,color:"#fca5a5",textAlign:"center",marginTop:6}}>⚠️ {!evDate&&!evTime?"Date and time required":!evDate?"Event date required":"Event time required"}</div>}
+        </div>
+
+        {/* PRICE REFERENCE TABLE */}
+        <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"14px",marginTop:10}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#6b7280",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}}>Price reference — {menu.name}</div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr style={{background:"#f9fafb"}}>
+                  <th style={{padding:"6px 8px",textAlign:"left",color:"#6b7280",fontWeight:600,fontSize:11}}>Guests</th>
+                  <th style={{padding:"6px 8px",textAlign:"right",color:"#374151",fontWeight:600,fontSize:11}}>Standard<br/>guest price</th>
+                  <th style={{padding:"6px 8px",textAlign:"right",color:"#0284c7",fontWeight:600,fontSize:11}}>Your cost<br/>from us</th>
+                  <th style={{padding:"6px 8px",textAlign:"right",color:"#059669",fontWeight:600,fontSize:11}}>Margin at<br/>list price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[["10–19",10],["20–29",20],["30–39",30],["40–59",40],["60–79",60],["80–99",80],["100–129",100],["130–159",130],["160–199",160],["200+",200]].map(([label,n],idx,arr)=>{
+                  const lp=getListPrice(menu,n), cc=getCoopCost(menu,n);
+                  const m=((lp-cc)/lp*100).toFixed(0);
+                  const thresholds=[10,20,30,40,60,80,100,130,160,200];
+                  const nextT=thresholds[idx+1]||999;
+                  const active=guests>=n&&guests<nextT;
+                  return(
+                    <tr key={n} style={{background:active?"#f0f9ff":"white",fontWeight:active?700:400}}>
+                      <td style={{padding:"7px 8px",borderBottom:"1px solid #f3f4f6",color:active?"#0369a1":"#374151"}}>{label} pax{active?" ◀":""}</td>
+                      <td style={{padding:"7px 8px",borderBottom:"1px solid #f3f4f6",textAlign:"right"}}>{fmt(lp)}</td>
+                      <td style={{padding:"7px 8px",borderBottom:"1px solid #f3f4f6",textAlign:"right",color:"#0284c7"}}>{fmt(cc)}</td>
+                      <td style={{padding:"7px 8px",borderBottom:"1px solid #f3f4f6",textAlign:"right",color:Number(m)>=15?"#15803d":"#059669"}}>{m}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:8}}>All prices incl. 11% VAT · Your cost = 30-pax tier minimum −12% co-op · Under 30 pax: you pay the 30-tier rate, guests pay their tier → higher margin · Highlighted row = current selection</div>
+        </div>
+
+        {/* MENU INFO */}
+        <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",marginTop:10,overflow:"hidden"}}>
+          <button onClick={()=>setShowMenuInfo(!showMenuInfo)} style={{width:"100%",padding:"12px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",fontWeight:700,fontSize:13}}>
+            <span>🍽️ Menu Information & Website Links</span>
+            <span style={{fontSize:16,color:"#9ca3af"}}>{showMenuInfo?"▲":"▼"}</span>
+          </button>
+          {showMenuInfo&&(
+            <div style={{padding:"0 14px 14px",borderTop:"1px solid #f3f4f6"}}>
+              <p style={{fontSize:12,color:"#6b7280",margin:"10px 0"}}>For full descriptions, photos and ingredient lists, direct guests to our website.</p>
+              {MENUS.map(m=>(
+                <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"8px 0",borderBottom:"1px solid #f9fafb"}}>
+                  <div>
+                    <div style={{fontWeight:600,fontSize:13}}>{m.icon} {m.name}</div>
+                    <div style={{fontSize:11,color:"#6b7280",marginTop:1}}>{m.desc}</div>
+                    <div style={{display:"flex",gap:4,marginTop:4,flexWrap:"wrap"}}>
+                      {m.hasVeg&&<Tag c="#059669" bg="#d1fae5">🥦 Veg</Tag>}
+                      {m.hasVegan&&<Tag c="#065f46" bg="#a7f3d0">🌱 Vegan</Tag>}
+                      {m.allergens.map(a=><Tag key={a} c="#9ca3af" bg="#f3f4f6">{a}</Tag>)}
+                    </div>
+                  </div>
+                  <a href={m.web} target="_blank" rel="noreferrer" style={{fontSize:11,padding:"4px 10px",background:"#e0f2fe",color:"#0284c7",borderRadius:7,textDecoration:"none",fontWeight:600,flexShrink:0,marginLeft:10}}>View →</a>
+                </div>
+              ))}
+              <div style={{marginTop:10,padding:"8px 10px",background:"#fef9c3",borderRadius:8,fontSize:11,color:"#92400e"}}>⚠️ All menus may contain allergen traces from shared kitchen equipment. For severe allergies, always contact Veisluþjónusta Suðurlands directly.</div>
+            </div>
+          )}
+        </div>
+
+        {/* FAQ */}
+        <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",marginTop:10,overflow:"hidden"}}>
+          <div style={{padding:"12px 14px",fontWeight:700,fontSize:13,borderBottom:"1px solid #f3f4f6"}}>❓ FAQ — Common guest questions</div>
+          {FAQS.map((faq,i)=>(
+            <div key={i} style={{borderBottom:i<FAQS.length-1?"1px solid #f9fafb":"none"}}>
+              <button onClick={()=>setOpenFaq(openFaq===i?null:i)} style={{width:"100%",padding:"11px 14px",background:"none",border:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",textAlign:"left",fontSize:13,fontWeight:600,color:"#374151"}}>
+                <span>{faq.q}</span>
+                <span style={{fontSize:14,color:"#9ca3af",marginLeft:10,flexShrink:0}}>{openFaq===i?"▲":"▼"}</span>
+              </button>
+              {openFaq===i&&<div style={{padding:"0 14px 12px",fontSize:12,color:"#374151",lineHeight:1.7,background:"#f9fafb"}}>{faq.a}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* CONTACT FOOTER */}
+        <div style={{background:"#0c4a6e",borderRadius:10,padding:"14px 16px",marginTop:10,color:"white"}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:"#bae6fd"}}>📞 Contact Veisluþjónusta Suðurlands</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:12}}>
+            <div><div style={{color:"#7dd3fc",fontSize:10,fontWeight:700,marginBottom:2}}>PHONE</div><div>{SUPPLIER_PHONE}</div></div>
+            <div><div style={{color:"#7dd3fc",fontSize:10,fontWeight:700,marginBottom:2}}>EMAIL</div><div>{SUPPLIER_EMAIL}</div></div>
+            <div><div style={{color:"#7dd3fc",fontSize:10,fontWeight:700,marginBottom:2}}>WEBSITE</div><div>{SUPPLIER_WEB}</div></div>
+            <div><div style={{color:"#7dd3fc",fontSize:10,fontWeight:700,marginBottom:2}}>ADDRESS</div><div>Brúartorg, Selfoss</div></div>
+          </div>
+          <div style={{marginTop:10,fontSize:11,color:"#7dd3fc",lineHeight:1.7}}>Min. 48h notice · Short notice? Call us — we are flexible<br/>Changes within 48h of event: count is locked once prep starts</div>
+        </div>
+      </div>
+
+      {/* MODALS */}
+      {modal==="history"&&(
+        <Mdl title="📋 Order History" onClose={()=>setModal(null)}>
+          {orders.length===0?<p style={{color:"#9ca3af",fontSize:13}}>No orders yet.</p>:orders.map(o=>(
+            <div key={o.id} style={{padding:"10px 12px",border:"1px solid #e5e7eb",borderRadius:9,marginBottom:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13}}>{o.id}{o.holiday&&<span style={{fontSize:10,background:"#fee2e2",color:"#dc2626",padding:"1px 6px",borderRadius:4,marginLeft:6}}>Holiday</span>}</div>
+                  <div style={{fontSize:11,color:"#6b7280"}}>{o.menuName} · {o.guests} guests · {o.evDate||"No date"}</div>
+                  <div style={{fontSize:10,color:"#9ca3af"}}>{o.clientName||"No client"} · {dFmt(o.ts)}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontWeight:700,color:"#0284c7",fontSize:13}}>{fmt(o.coopCostTotal)}</div>
+                  <div style={{display:"flex",gap:4,marginTop:4}}>
+                    <button onClick={()=>{setModal(null);openPrint(o,"customer");}} style={{fontSize:10,padding:"3px 7px",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",background:"white"}}>📄 Customer</button>
+                    <button onClick={()=>{setModal(null);openPrint(o,"internal");}} style={{fontSize:10,padding:"3px 7px",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",background:"white"}}>🔒 Internal</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </Mdl>
+      )}
+      {modal==="confirm"&&(
+        <Mdl title="✅ Quote sent!" onClose={()=>setModal(null)} small>
+          <div style={{textAlign:"center",padding:"10px 0"}}>
+            <div style={{fontSize:40,marginBottom:10}}>📨</div>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:6}}>Quote sent successfully</div>
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:6}}>
+              {menu.name} · {guests} guests · {evDate}<br/>
+              Guest price: <strong>{fmt(guestPrice)}/pax</strong> · Your cost: <strong>{fmt(coopCost)}/pax</strong>
+              {holiday&&<><br/><span style={{color:"#dc2626",fontSize:12}}>⚠️ {holiday}</span></>}
+            </div>
+            <div style={{fontSize:11,color:"#6b7280",marginBottom:14}}>Sent to: Veisluþjónusta Suðurlands · {PARTNER_NAME}{sendToCustomer&&clientEmail?` · ${clientEmail}`:""}</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{setModal(null);openPrint(orders[0],"customer");}} style={{flex:1,padding:"9px",background:"#0284c7",color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:12}}>📄 Customer PDF</button>
+              <button onClick={()=>{setModal(null);openPrint(orders[0],"internal");}} style={{flex:1,padding:"9px",background:"#374151",color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:12}}>🔒 Internal PDF</button>
+              <button onClick={()=>setModal(null)} style={{padding:"9px 14px",border:"1px solid #e5e7eb",borderRadius:8,cursor:"pointer",background:"white",fontSize:12}}>Close</button>
+            </div>
+          </div>
+        </Mdl>
+      )}
+      {printContent&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",flexDirection:"column"}}>
+          <div style={{background:"#0c4a6e",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div style={{fontWeight:700,color:"white"}}>{printMode==="customer"?"📄 Customer Quote":"🔒 Internal Order"}</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={doPrint} style={{background:"#e11d48",color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontWeight:700,cursor:"pointer"}}>Print / Save PDF</button>
+              <button onClick={()=>setPrintContent(null)} style={{background:"rgba(255,255,255,0.15)",color:"white",border:"none",borderRadius:8,padding:"8px 14px",cursor:"pointer"}}>✕</button>
+            </div>
+          </div>
+          <div ref={printRef} style={{flex:1,overflow:"auto",background:"#e5e7eb",padding:20}}>
+            <iframe srcDoc={printContent} style={{width:"100%",maxWidth:680,minHeight:700,margin:"0 auto",display:"block",border:"none",borderRadius:4,boxShadow:"0 4px 24px rgba(0,0,0,0.2)"}} title="Order"/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const I={width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,boxSizing:"border-box",outline:"none",fontFamily:"inherit"};
+const Step=({n,title,children})=>(<div style={{background:"white",borderRadius:12,border:"1px solid #e5e7eb",padding:"14px 16px",marginBottom:12}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><div style={{width:26,height:26,borderRadius:"50%",background:"#0c4a6e",color:"white",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0}}>{n}</div><div style={{fontWeight:700,fontSize:15}}>{title}</div></div>{children}</div>);
+const F=({label,children,span2})=>(<div style={span2?{gridColumn:"1/-1"}:{}}><div style={{fontSize:10,fontWeight:700,color:"#6b7280",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>{label}</div>{children}</div>);
+const SB=({onClick,children})=><button onClick={onClick} style={{width:30,height:30,borderRadius:8,border:"1px solid #e5e7eb",background:"white",cursor:"pointer",fontSize:16,fontWeight:700,flexShrink:0}}>{children}</button>;
+const Tag=({c,bg,children})=><span style={{fontSize:10,padding:"2px 7px",borderRadius:20,background:bg,color:c,fontWeight:600}}>{children}</span>;
+const Mdl=({title,children,onClose,small})=>(<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:14,width:"100%",maxWidth:small?380:480,maxHeight:"85vh",overflow:"auto",padding:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontWeight:700,fontSize:15}}>{title}</div><button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#9ca3af"}}>✕</button></div>{children}</div></div>);
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>

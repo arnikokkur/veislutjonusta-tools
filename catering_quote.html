@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Veisluþjónusta Suðurlands — Catering Quote Calculator</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;font-size:14px;color:#111;background:#f9fafb;}
+input,select,textarea{font-family:inherit;}
+@media(max-width:680px){.g2c{grid-template-columns:1fr!important}.mg{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+
+const genId=()=>`FS-${new Date().getFullYear()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
+const fmt=n=>Math.round(Number(n)).toLocaleString("is-IS")+" kr";
+const pct=n=>(Number(n)*100).toFixed(1)+"%";
+const dStr=ts=>new Date(ts).toLocaleDateString("en-GB");
+const round5=n=>Math.round(n/0.5)*0.5;
+
+// ── Menus / Services / Policy ─────────────────────────────────
+const MENUS=[
+  {id:"bistro", cat:"Finger Food",name:"Bístró smáréttir",  desc:"8 types · 10 units/pax",price:5990,min:10},
+  {id:"pinna",  cat:"Finger Food",name:"Pinnaveisla",        desc:"8 types · 12 units/pax",price:6990,min:10},
+  {id:"snarl",  cat:"Finger Food",name:"Snarl pinni",        desc:"4 types · 6 units/pax", price:3690,min:10},
+  {id:"snitta", cat:"Finger Food",name:"Snittuveisla",       desc:"6 types · 10 units/pax",price:4490,min:25},
+  {id:"coffee", cat:"Meetings",   name:"Kaffihlaðborð",      desc:"Coffee table",           price:3200,min:10},
+  {id:"meeting",cat:"Meetings",   name:"Fundapakki (Full Day)",desc:"Full day catering",    price:6500,min:10},
+  {id:"arshatid",cat:"Parties",   name:"Árshátíð Pakki",     desc:"3 courses, served",      price:8990,min:20},
+  {id:"wedding",cat:"Weddings",   name:"Brúðkaup Pakki",     desc:"Full service wedding",   price:11990,min:20},
+  {id:"ferming",cat:"Confirmations",name:"Fermingarveisla",  desc:"Soup buffet & desserts", price:5490,min:15},
+];
+const TIERS=[{min:100,rate:0.12,label:"100+"},{min:50,rate:0.08,label:"50–99"},{min:25,rate:0.05,label:"25–49"},{min:0,rate:0,label:"<25"}];
+const SERVICES=[
+  {id:"pickup",    icon:"🥡",name:"Pickup",            delivery:0,    staff:false,bar:false,venue:false},
+  {id:"delivery",  icon:"🚗",name:"Delivery",          delivery:25000,staff:false,bar:false,venue:false},
+  {id:"full",      icon:"🍽️",name:"Full Service",      delivery:0,    staff:true, bar:false,venue:false},
+  {id:"full_bar",  icon:"🍷",name:"Full Service + Bar",delivery:0,    staff:true, bar:true, venue:false},
+  {id:"full_venue",icon:"🏛️",name:"Full Package",      delivery:0,    staff:true, bar:true, venue:true },
+];
+const POLICY_DEFAULTS=[
+  {id:"notice",  icon:"⏰", on:true,  text:"__NOTICE__"},
+  {id:"deposit", icon:"💳", on:true,  text:"__DEPOSIT__"},
+  {id:"cancel",  icon:"❌", on:true,  text:"__CANCEL__"},
+  {id:"delivery",icon:"🚗", on:true,  text:"Free delivery within 30 minutes from Selfoss with all Full Service bookings."},
+  {id:"credit",  icon:"🎁", on:false, text:"Full Service: 15% of food and drink spend credited toward venue rental."},
+  {id:"coop",    icon:"🤝", on:false, text:"Venue co-op partners: 12% wholesale rate. Set own margin on top."},
+  {id:"valid",   icon:"📋", on:true,  text:"Quotes valid 14 days. Prices include VAT (food 11%, bar 24%)."},
+];
+const DEPOSIT_DEFAULTS={p1:30,p1label:"non-refundable confirmation",p2:50,p2weeks:4,p3:20};
+const NOTICE_DEFAULTS={smallPax:30,smallHours:48,largeDays:7};
+const CANCEL_DEFAULTS={immediate:"full charge",mid:50,midDaysFrom:3,midDaysTo:7,free:7};
+const EVENT_TYPES=["Birthday","Wedding","Confirmation","Graduation","Corporate","Annual Party","Meeting","Wake","Private Dinner","Þorrablót","Other"];
+const BAR_PP=4500,VENUE_BASE=150000,CREDIT_RATE=0.15,VAT_FOOD=0.11,VAT_BAR=0.24,COOP_DISC=0.12,KM_TAX=6.95,SALARY_COSTS=1.20;
+const EMAILJS={serviceId:"YOUR_SERVICE_ID",templateId:"YOUR_TEMPLATE_ID",publicKey:"YOUR_PUBLIC_KEY"};
+
+// ── Event Presets ─────────────────────────────────────────────
+const PRESETS=[
+  {id:"small",     icon:"🥂",name:"Small Event",     desc:"Intimate gathering, 10–25 guests, in Selfoss",
+   cfg:{eventName:"Small Event",guests:15,hotDishes:2,ingredientPP:2000,prepHours:3,prepStaff:1,locationHours:3,locationStaff:1,travelHours:0,travelStaff:1,vehicles:1,kmOneWay:0,deliveryZone:"selfoss",planningHours:1,targetMarginPct:28,transportVATMode:"bundle11",autoOvertime:false}},
+  {id:"delivery",  icon:"🍱",name:"Quick Delivery",  desc:"Lunch/meal delivery to office or home",
+   cfg:{eventName:"Meal Delivery",guests:20,hotDishes:2,ingredientPP:1800,prepHours:2,prepStaff:1,locationHours:0.5,locationStaff:1,travelHours:0,travelStaff:1,vehicles:1,kmOneWay:5,deliveryZone:"selfoss",planningHours:1,targetMarginPct:28,transportVATMode:"bundle11",autoOvertime:false}},
+  {id:"corporate", icon:"🏢",name:"Corporate",       desc:"Meeting, conference or office catering",
+   cfg:{eventName:"Corporate Event",guests:30,hotDishes:3,ingredientPP:2200,prepHours:4,prepStaff:2,locationHours:4,locationStaff:2,travelHours:0,travelStaff:1,vehicles:1,deliveryZone:"selfoss",planningHours:2,targetMarginPct:30,transportVATMode:"separate24"}},
+  {id:"birthday",  icon:"🎂",name:"Birthday",        desc:"Private birthday or family party",
+   cfg:{eventName:"Birthday Party",guests:50,hotDishes:4,ingredientPP:2000,prepHours:8,prepStaff:2,locationHours:6,locationStaff:2,travelHours:0,travelStaff:2,vehicles:1,planningHours:3,targetMarginPct:28,transportVATMode:"bundle11"}},
+  {id:"wedding",   icon:"💍",name:"Wedding",         desc:"Full service wedding catering",
+   cfg:{eventName:"Wedding",guests:100,hotDishes:6,ingredientPP:2800,prepHours:16,prepStaff:3,locationHours:10,locationStaff:4,travelHours:0,travelStaff:4,vehicles:1,planningHours:8,targetMarginPct:28,transportVATMode:"bundle11"}},
+  {id:"ferming",   icon:"🎓",name:"Ferming",         desc:"Confirmation party",
+   cfg:{eventName:"Fermingarveisla",guests:60,hotDishes:4,ingredientPP:2000,prepHours:8,prepStaff:2,locationHours:5,locationStaff:2,travelHours:0,travelStaff:2,vehicles:1,planningHours:3,targetMarginPct:25,transportVATMode:"bundle11"}},
+  {id:"annual",    icon:"🎊",name:"Árshátíð",        desc:"Annual company party",
+   cfg:{eventName:"Árshátíðarveisla",guests:100,hotDishes:6,ingredientPP:2400,prepHours:12,prepStaff:3,locationHours:8,locationStaff:3,travelHours:0,travelStaff:3,vehicles:1,planningHours:5,targetMarginPct:28,transportVATMode:"separate24"}},
+  {id:"thorrablot",icon:"❄️",name:"Þorrablót",      desc:"Traditional winter feast",
+   cfg:{eventName:"Þorrablót",guests:150,hotDishes:5,ingredientPP:1800,prepHours:10,prepStaff:3,locationHours:8,locationStaff:3,travelHours:0,travelStaff:3,vehicles:1,planningHours:5,targetMarginPct:25,transportVATMode:"bundle11"}},
+  {id:"large",     icon:"🏛️",name:"Large Event",    desc:"250+ guests, full production",
+   cfg:{eventName:"Stórveisla",guests:300,hotDishes:8,ingredientPP:2200,prepHours:18,prepStaff:4,locationHours:12,locationStaff:5,travelHours:0,travelStaff:5,vehicles:2,planningHours:10,targetMarginPct:25,transportVATMode:"separate24"}},
+];
+
+// ── Equipment ─────────────────────────────────────────────────
+const EQUIP_CATS=["Tableware","Hot Service","Buffet","Venue Setup","Transport","Washing"];
+const EQUIP_DEF=[
+  {id:"plates",   cat:"Tableware",  name:"Diskar 23cm",                  cost:45,   on:false},
+  {id:"bowl_lg",  cat:"Tableware",  name:"Skálar 25cm",                  cost:40,   on:false},
+  {id:"bowl_md",  cat:"Tableware",  name:"Skálar 24cm",                  cost:35,   on:false},
+  {id:"bowl_sm",  cat:"Tableware",  name:"Skálar 22cm",                  cost:30,   on:false},
+  {id:"cutlery",  cat:"Tableware",  name:"Cutlery set",                  cost:55,   on:false},
+  {id:"coffee",   cat:"Tableware",  name:"Coffee cups & saucers",        cost:35,   on:false},
+  {id:"chafing",  cat:"Hot Service",name:"Hot bath / chafing dish",      cost:900,  on:false},
+  {id:"sterno",   cat:"Hot Service",name:"Sterno/gel fuel (per can)",    cost:400,  on:false},
+  {id:"hot_unit", cat:"Hot Service",name:"Hot unit / table",             cost:1800, on:false},
+  {id:"induction",cat:"Hot Service",name:"Portable induction hob",       cost:600,  on:false},
+  {id:"gn",       cat:"Hot Service",name:"GN containers (set)",          cost:250,  on:false},
+  {id:"heat_lamp",cat:"Hot Service",name:"Heat lamp",                    cost:700,  on:false},
+  {id:"troglar",  cat:"Buffet",     name:"Stainless troglur",            cost:350,  on:false},
+  {id:"carving",  cat:"Buffet",     name:"Carving board (100cm)",        cost:450,  on:false},
+  {id:"buf_table",cat:"Buffet",     name:"Buffet tables",                cost:600,  on:false},
+  {id:"linens",   cat:"Buffet",     name:"Table linens & skirting",      cost:1400, on:false},
+  {id:"utensils", cat:"Buffet",     name:"Serving utensils set",         cost:200,  on:false},
+  {id:"decor",    cat:"Buffet",     name:"Décor package",                cost:15000,on:false},
+  {id:"viking",   cat:"Buffet",     name:"Viking boat",                  cost:600,  on:false},
+  {id:"chairs",       cat:"Venue Setup",name:"Chairs",                   cost:350,  on:false},
+  {id:"chair_covers", cat:"Venue Setup",name:"Chair covers",             cost:200,  on:false},
+  {id:"guest_tables", cat:"Venue Setup",name:"Guest tables",             cost:1200, on:false},
+  {id:"extra_tables", cat:"Venue Setup",name:"Extra / side tables",      cost:800,  on:false},
+  {id:"tablecloths",  cat:"Venue Setup",name:"Tablecloths",              cost:800,  on:false},
+  {id:"amb_lighting", cat:"Venue Setup",name:"Ambient lighting",         cost:2500, on:false},
+  {id:"candles",      cat:"Venue Setup",name:"Candles",                  cost:150,  on:false},
+  {id:"candle_hold",  cat:"Venue Setup",name:"Candle holders",           cost:300,  on:false},
+  {id:"thermo",   cat:"Transport",  name:"Thermo boxes",                 cost:0,    on:false},
+  {id:"pre_wash", cat:"Washing",    name:"Pre-event polish & check (hrs)",cost:3500,on:false},
+  {id:"post_wash",cat:"Washing",    name:"Post-event wash & repack (hrs)",cost:3500,on:false},
+  {id:"clean_sup",cat:"Washing",    name:"Cleaning supplies (flat)",     cost:3500, on:false},
+];
+function autoQty(id,g,h){
+  const guests=g||1,hot=h||6;
+  const map={
+    plates:Math.ceil(guests*1.1),bowl_lg:Math.ceil(guests*1.1),bowl_md:Math.ceil(guests*0.7),
+    bowl_sm:Math.ceil(guests*0.5),cutlery:Math.ceil(guests*1.1),coffee:Math.ceil(guests*0.8),
+    chafing:hot,sterno:hot*4,hot_unit:Math.ceil(guests/120),induction:1,
+    gn:hot,heat_lamp:Math.ceil(guests/120),troglar:Math.ceil(guests/60),
+    carving:Math.ceil(guests/120),buf_table:guests<=250?1:2,
+    linens:guests<=120?2:guests<=250?3:5,utensils:hot+4,decor:1,viking:1,
+    chairs:guests,chair_covers:guests,
+    guest_tables:Math.ceil(guests/8),extra_tables:Math.ceil(guests/40),
+    tablecloths:Math.ceil(guests/8),
+    amb_lighting:1,candles:Math.ceil(guests/4),candle_hold:Math.ceil(guests/4),
+    thermo:Math.ceil(guests/250),pre_wash:Math.max(1,Math.ceil(guests/150)),
+    post_wash:Math.max(2,Math.ceil(guests/75)),clean_sup:1,
+  };
+  return map[id]!==undefined?map[id]:1;
+}
+function initEquip(g,h){return EQUIP_DEF.map(e=>({...e,qty:autoQty(e.id,g,h)}));}
+
+// ── Overtime helpers ──────────────────────────────────────────
+function getEaster(Y){const a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mo=Math.floor((h+l-7*m+114)/31),dy=((h+l-7*m+114)%31)+1;return new Date(Y,mo-1,dy);}
+function getHolidays(year){const e=getEaster(year),add=(d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r;},s=d=>d.toISOString().slice(0,10);const aug1=new Date(year,7,1),commerce=new Date(year,7,1+((8-aug1.getDay())%7||7)),apr19=new Date(year,3,19),summer=new Date(year,3,19+((4-apr19.getDay()+7)%7||7));return new Set([`${year}-01-01`,s(add(e,-3)),s(add(e,-2)),s(e),s(add(e,1)),s(summer),`${year}-05-01`,s(add(e,39)),s(add(e,49)),s(add(e,50)),`${year}-06-17`,s(commerce),`${year}-12-24`,`${year}-12-25`,`${year}-12-26`,`${year}-12-31`]);}
+function detectDayType(ds,st){if(!ds)return{type:"manual",mult:1.45,label:"No date — manual rate",color:"#9ca3af"};const date=new Date(ds+"T12:00:00"),year=date.getFullYear(),dow=date.getDay();if(getHolidays(year).has(ds))return{type:"holiday",mult:1.9,label:"🎄 Public holiday ×1.9",color:"#dc2626"};if(dow===0||dow===6)return{type:"weekend",mult:1.45,label:"📅 Weekend ×1.45",color:"#d97706"};const[h,m]=(st||"09:00").split(":").map(Number);if(h*60+(m||0)>=17*60)return{type:"evening",mult:1.33,label:"🌆 Weekday evening ×1.33",color:"#7c3aed"};return{type:"daytime",mult:1.0,label:"☀️ Weekday daytime ×1.0",color:"#15803d"};}
+function splitHours(lh,st){const[h,m]=(st||"09:00").split(":").map(Number),startMins=h*60+(m||0),dayHrs=Math.max(0,Math.min(lh,(17*60-startMins)/60));return{dayHrs,eveHrs:Math.max(0,lh-dayHrs)};}
+
+// ── Default custom config ─────────────────────────────────────
+const defaultCustom={
+  eventName:"",guests:20,hotDishes:3,
+  ingredientPP:0,prepHours:0,prepStaff:1,
+  locationHours:0,locationStaff:1,travelHours:0,travelStaff:1,
+  baseRate:3500,overtimeMult:1.0,salaryCosts:1.20,
+  vehicles:1,kmOneWay:0,avgSpeedKmh:80,
+  deliveryZone:"selfoss",fuelPricePerL:215,fuelConsumptionPer100:10,
+  vehicleOverheadPerKm:18,deliveryBaseFee:0,transportVATMode:"bundle11",
+  consumablesPP:150,extraCostsFlat:0,extraCostsLabel:"Other costs",
+  contingencyPct:7,targetMarginPct:25,overheadPct:10,vatRate:11,
+  planningHours:1,planningRate:3500,eventStartTime:"18:00",autoOvertime:true,
+  monthlyRent:200000,monthlyElectricity:60000,monthlySubscriptions:45000,
+  monthlyInsurance:25000,monthlyAccounting:40000,monthlyOther:30000,eventsPerMonth:4,
+};
+
+// ── Setup Notes ───────────────────────────────────────────────
+function SetupNotes({guests,hotDishes}){
+  const chefs=Math.ceil(guests/120),lines=guests>250?2:1,dual=guests>120;
+  return(
+    <div style={{background:"#f0f9ff",border:"1px solid #bae6fd",borderRadius:8,padding:"12px 14px",marginTop:12}}>
+      <div style={{fontWeight:700,fontSize:12,color:"#0369a1",marginBottom:8}}>📐 Setup notes — {guests} guests</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"5px 16px",fontSize:12,color:"#0c4a6e"}}>
+        <div>🍽️ Buffet lines: <strong>{lines}</strong></div>
+        <div>↔️ Queue: <strong>{dual?"Dual (both sides)":"Single"}</strong></div>
+        <div>👨‍🍳 Carving chefs: <strong>{chefs}</strong></div>
+        <div>🔥 Chafing dishes: <strong>min. {hotDishes} + 2 spare</strong></div>
+        <div>📏 Buffet table: <strong>{guests<=120?"~100cm":guests<=200?"~150cm (ping-pong)":"~160cm"}</strong></div>
+        <div>🚐 Vehicles: <strong>{guests<=250?"1 van":"2 vans"}</strong></div>
+      </div>
+      {lines>1&&<div style={{marginTop:8,fontSize:11,color:"#dc2626",fontWeight:600}}>⚠️ Split into 2 separate buffet lines at {guests} pax to prevent bottleneck</div>}
+      {chefs>=4&&<div style={{marginTop:4,fontSize:11,color:"#d97706",fontWeight:600}}>⚠️ {chefs} carving stations — pre-assign staff positions before service</div>}
+    </div>
+  );
+}
+
+// ── Equipment Section ─────────────────────────────────────────
+function EquipSection({equipment,setEquipment,onRefresh,customItems,setCustomItems}){
+  const stdTotal=equipment.filter(e=>e.on).reduce((s,e)=>s+e.cost*e.qty,0);
+  const custTotal=customItems.reduce((s,e)=>s+(e.cost||0)*(e.qty||1),0);
+  const total=stdTotal+custTotal;
+  const upd=(id,field,val)=>setEquipment(p=>p.map(e=>e.id===id?{...e,[field]:val}:e));
+  const addCustom=()=>setCustomItems(p=>[...p,{id:`c_${Date.now()}`,name:"",qty:1,cost:0}]);
+  const updCustom=(id,field,val)=>setCustomItems(p=>p.map(e=>e.id===id?{...e,[field]:val}:e));
+  const delCustom=(id)=>setCustomItems(p=>p.filter(e=>e.id!==id));
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:11,color:"#6b7280"}}>Unit costs = depreciation + wash per use.</div>
+        <button onClick={onRefresh} style={{fontSize:11,padding:"5px 10px",border:"1px solid #e5e7eb",borderRadius:7,background:"white",cursor:"pointer",fontWeight:600}}>↻ Auto-refresh quantities</button>
+      </div>
+      {/* Column headers */}
+      <div style={{display:"grid",gridTemplateColumns:"20px 1fr 55px 55px 90px",gap:5,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #e5e7eb"}}>
+        <div/>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.04em"}}>Item</div>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.04em",textAlign:"center"}}>Qty</div>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.04em",textAlign:"center"}}>Price/unit</div>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.04em",textAlign:"right"}}>Total</div>
+      </div>
+      {EQUIP_CATS.map(cat=>{
+        const items=equipment.filter(e=>e.cat===cat);
+        const catTotal=items.filter(e=>e.on).reduce((s,e)=>s+e.cost*e.qty,0);
+        return(
+          <div key={cat} style={{marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+              <div style={{fontSize:10,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em"}}>{cat}</div>
+              <div style={{fontSize:11,fontWeight:700,color:"#374151"}}>{catTotal>0?fmt(catTotal):"—"}</div>
+            </div>
+            {items.map(item=>(
+              <div key={item.id} style={{display:"grid",gridTemplateColumns:"20px 1fr 55px 55px 90px",gap:5,alignItems:"center",marginBottom:4,opacity:item.on?1:0.4}}>
+                <input type="checkbox" checked={item.on} onChange={e=>upd(item.id,"on",e.target.checked)} style={{width:15,height:15,accentColor:"#e11d48",cursor:"pointer"}}/>
+                <span style={{fontSize:12,color:item.on?"#111":"#9ca3af"}}>{item.name}</span>
+                <input type="number" value={item.qty} onChange={e=>upd(item.id,"qty",Math.max(0,Number(e.target.value)))} disabled={!item.on} style={{...I,textAlign:"center",padding:"4px 6px",fontSize:12}}/>
+                <input type="number" value={item.cost} onChange={e=>upd(item.id,"cost",Math.max(0,Number(e.target.value)))} disabled={!item.on} style={{...I,padding:"4px 6px",fontSize:12}}/>
+                <div style={{textAlign:"right",fontSize:12,fontWeight:600,color:item.on?"#374151":"#9ca3af"}}>{item.on&&item.cost>0?fmt(item.cost*item.qty):"—"}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
+      {/* Custom items */}
+      <div style={{marginBottom:12,borderTop:"1px dashed #e5e7eb",paddingTop:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em"}}>Custom items</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {custTotal>0&&<div style={{fontSize:11,fontWeight:700,color:"#374151"}}>{fmt(custTotal)}</div>}
+            <button onClick={addCustom} style={{fontSize:11,padding:"4px 10px",border:"1px solid #0284c7",borderRadius:7,background:"#e0f2fe",color:"#0369a1",cursor:"pointer",fontWeight:700}}>+ Add item</button>
+          </div>
+        </div>
+        {customItems.length===0&&(
+          <div style={{fontSize:12,color:"#9ca3af",fontStyle:"italic",padding:"6px 0"}}>No custom items — click "+ Add item" to add anything not on the list above.</div>
+        )}
+        {customItems.map(item=>(
+          <div key={item.id} style={{display:"grid",gridTemplateColumns:"1fr 55px 70px 90px 28px",gap:5,alignItems:"center",marginBottom:6}}>
+            <input type="text" placeholder="Item description" value={item.name} onChange={e=>updCustom(item.id,"name",e.target.value)} style={{...I,padding:"4px 8px",fontSize:12}}/>
+            <input type="number" min={1} value={item.qty} onChange={e=>updCustom(item.id,"qty",Math.max(1,Number(e.target.value)))} style={{...I,textAlign:"center",padding:"4px 6px",fontSize:12}}/>
+            <input type="number" min={0} placeholder="Cost" value={item.cost} onChange={e=>updCustom(item.id,"cost",Math.max(0,Number(e.target.value)))} style={{...I,padding:"4px 6px",fontSize:12}}/>
+            <div style={{textAlign:"right",fontSize:12,fontWeight:600,color:"#374151"}}>{fmt((item.cost||0)*(item.qty||1))}</div>
+            <button onClick={()=>delCustom(item.id)} style={{padding:"4px",border:"1px solid #fca5a5",borderRadius:6,background:"#fef2f2",color:"#dc2626",cursor:"pointer",fontSize:13,lineHeight:1}}>✕</button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{borderTop:"2px solid #111",paddingTop:8,display:"flex",justifyContent:"space-between",fontWeight:700,fontSize:14}}>
+        <span>Equipment total</span><span>{fmt(total)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────
+export default function App(){
+  const [tab,setTab]=useState("standard");
+  // Standard
+  const [client,setClient]=useState({name:"",email:"",phone:"",company:""});
+  const [evDate,setEvDate]=useState(""); const [evType,setEvType]=useState(EVENT_TYPES[0]);
+  const [notes,setNotes]=useState(""); const [guests,setGuests]=useState(25);
+  const [menuId,setMenuId]=useState("bistro"); const [svcId,setSvcId]=useState("pickup");
+  const [coop,setCoop]=useState(false); const [qid,setQid]=useState(genId);
+  const [stdAdj,setStdAdj]=useState(0);
+  // Custom
+  const [C,setC]=useState(defaultCustom);
+  const [cc,setCc]=useState({name:"",email:"",phone:"",company:""});
+  const [cDate,setCDate]=useState(""); const [cNotes,setCNotes]=useState(""); const [cQid,setCQid]=useState(genId);
+  const [equipment,setEquipment]=useState(()=>initEquip(defaultCustom.guests,defaultCustom.hotDishes));
+  const [customItems,setCustomItems]=useState([]);
+  // Shared
+  const [quotes,setQuotes]=useState([]); const [templates,setTemplates]=useState([]);
+  const [modal,setModal]=useState(null); const [tplName,setTplName]=useState("");
+  const [status,setStatus]=useState(null); const [printContent,setPrintContent]=useState(null);
+  const [policy,setPolicy]=useState(POLICY_DEFAULTS);
+  const [deposit,setDeposit]=useState(DEPOSIT_DEFAULTS);
+  const [notice,setNotice]=useState(NOTICE_DEFAULTS);
+  const [cancel,setCancel]=useState(CANCEL_DEFAULTS);
+  const printRef=useRef();
+
+  const depositText=`${deposit.p1}% deposit required to confirm (${deposit.p1label}). ${deposit.p2}% due ${deposit.p2weeks} weeks before event. Remaining ${deposit.p3}% invoiced after event.`;
+  const noticeText=`Minimum notice: ${notice.smallHours} hours for ${notice.smallPax} or fewer guests. ${notice.largeDays} days for larger events.`;
+  const cancelText=`Cancellation: within ${notice.smallHours} hours — ${cancel.immediate}. ${cancel.midDaysFrom}–${cancel.midDaysTo} days before — ${cancel.mid}% charge. ${cancel.free}+ days before — free.`;
+  const activePolicies=policy.map(p=>{
+    if(!p.on) return null;
+    let text=p.text;
+    if(p.id==="deposit") text=depositText;
+    if(p.id==="notice")  text=noticeText;
+    if(p.id==="cancel")  text=cancelText;
+    return {...p,text};
+  }).filter(Boolean);
+  const loadAll=useCallback(async()=>{
+    try{const qr=await window.storage.list("cq:");const qs=[];if(qr&&qr.keys&&qr.keys.length)for(const k of qr.keys){try{const x=await window.storage.get(k);if(x)qs.push(JSON.parse(x.value));}catch{}}setQuotes(qs.sort((a,b)=>b.ts-a.ts));}catch{}
+    try{const tr=await window.storage.list("tpl:");const ts=[];if(tr&&tr.keys&&tr.keys.length)for(const k of tr.keys){try{const x=await window.storage.get(k);if(x)ts.push(JSON.parse(x.value));}catch{}}setTemplates(ts.sort((a,b)=>b.savedAt-a.savedAt));}catch{}
+  },[]);
+
+  // ── Standard calc ─────────────────────────────────────────
+  const menu=MENUS.find(m=>m.id===menuId),svc=SERVICES.find(s=>s.id===svcId),tier=TIERS.find(t=>guests>=t.min);
+  const gDisc=tier.rate,cDisc=coop?COOP_DISC:0,ppp=Math.round(menu.price*(1-gDisc)*(1-cDisc));
+  const fSub=ppp*guests,bSub=svc.bar?BAR_PP*guests:0,vFee=svc.venue?VENUE_BASE:0,del=svc.delivery;
+  const credit=svc.staff?Math.round((fSub+bSub)*CREDIT_RATE):0;
+  const exVAT=fSub+bSub+vFee+del-(svc.venue?credit:0);
+  const stdTotal=Math.round((exVAT+Math.round(fSub*VAT_FOOD)+Math.round(bSub*VAT_BAR))*(1+stdAdj/100));
+  const savedAmt=(menu.price*guests)-fSub;
+
+  // ── Custom calc ───────────────────────────────────────────
+  const upd=(k,v)=>setC(p=>({...p,[k]:v})),updN=(k)=>(e)=>upd(k,parseFloat(e.target.value)||0);
+  const prepRate=C.baseRate*SALARY_COSTS;
+  const dayType=detectDayType(cDate,C.eventStartTime);
+  const fieldMult=C.autoOvertime?dayType.mult:C.overtimeMult;
+  const fieldRate=C.baseRate*fieldMult*SALARY_COSTS;
+  const{dayHrs,eveHrs}=dayType.type==="daytime"?splitHours(C.locationHours,C.eventStartTime):{dayHrs:0,eveHrs:C.locationHours};
+  const locCost=dayType.type==="daytime"?(dayHrs*C.locationStaff*prepRate+eveHrs*C.locationStaff*C.baseRate*1.33*SALARY_COSTS):(C.locationHours*C.locationStaff*fieldRate);
+  const prepCost=C.prepStaff*C.prepHours*prepRate;
+  const travCost=C.travelStaff*C.travelHours*fieldRate;
+  const planCost=C.planningHours*C.planningRate*SALARY_COSTS;
+  const labourTotal=prepCost+locCost+travCost+planCost;
+  const ingCost=C.guests*C.ingredientPP;
+  const vehicleCostPerKm=(C.fuelPricePerL*(C.fuelConsumptionPer100/100))+KM_TAX+C.vehicleOverheadPerKm;
+  const kmCost=C.vehicles*C.kmOneWay*2*vehicleCostPerKm;
+  const transCost=C.deliveryZone==="selfoss"?(C.guests<30?2990:0):((C.deliveryBaseFee||0)+kmCost);
+  const suggestedTravelHrs=C.kmOneWay>0?round5((C.kmOneWay*2)/C.avgSpeedKmh):0;
+  const travelLinked=suggestedTravelHrs>0&&Math.abs(C.travelHours-suggestedTravelHrs)<0.3;
+  const consCost=C.guests*C.consumablesPP;
+  const equipTotal=equipment.filter(e=>e.on).reduce((s,e)=>s+e.cost*e.qty,0)
+    +customItems.reduce((s,e)=>s+(e.cost||0)*(e.qty||1),0);
+  const isBundle=C.transportVATMode==="bundle11";
+  // When transport is separate (24% VAT), exclude it from the margin/overhead engine
+  // — transport is a pass-through at cost. Only catering costs get margin'd up.
+  const cateringDirectCost=ingCost+labourTotal+(isBundle?transCost:0)+equipTotal+consCost+C.extraCostsFlat;
+  const contingencyAmt=cateringDirectCost*(C.contingencyPct/100);
+  const totalCost=cateringDirectCost+contingencyAmt+(isBundle?0:transCost); // for margin display
+  const combinedDeduct=C.targetMarginPct/100+C.overheadPct/100;
+  const cateringRevNeeded=combinedDeduct<1?( cateringDirectCost+contingencyAmt)/(1-combinedDeduct):(cateringDirectCost+contingencyAmt)*2;
+  const revNeeded=cateringRevNeeded+(isBundle?0:transCost); // total revenue needed incl. transport pass-through
+  const overheadContribution=Math.round(cateringRevNeeded*(C.overheadPct/100));
+  const monthlyFixed=C.monthlyRent+C.monthlyElectricity+C.monthlySubscriptions+C.monthlyInsurance+C.monthlyAccounting+C.monthlyOther;
+  const perEventFixed=C.eventsPerMonth>0?Math.round(monthlyFixed/C.eventsPerMonth):0;
+  const ppExVAT=C.guests>0?revNeeded/C.guests:0;
+  const foodRevenue=cateringRevNeeded; // catering subtotal ex. VAT (transport excluded when separate)
+  const foodVAT=Math.round(foodRevenue*(C.vatRate/100));
+  const transVAT=isBundle?0:Math.round(transCost*0.24);
+  const totalVAT=foodVAT+transVAT;
+  const totalInclVAT=revNeeded+totalVAT;
+  const ppInclVAT=C.guests>0?totalInclVAT/C.guests:0;
+  const actualMargin=(cateringRevNeeded-(cateringDirectCost+contingencyAmt))/cateringRevNeeded;
+
+  function applyPreset(p){
+    setC(prev=>({...defaultCustom,...prev,...p.cfg}));
+    setEquipment(initEquip(p.cfg.guests||50,p.cfg.hotDishes||5));
+    setCQid(genId());
+  }
+  function refreshEquipQty(){setEquipment(prev=>prev.map(e=>({...e,qty:autoQty(e.id,C.guests,C.hotDishes)})));}
+
+  async function handleSave(isCustom){
+    setStatus("saving");
+    const id=isCustom?cQid:qid;
+    const q=isCustom
+      ?{id,ts:Date.now(),type:"custom",client:cc,evDate:cDate,notes:cNotes,eventName:C.eventName,guests:C.guests,totalCost,totalInclVAT,ppInclVAT,ppExVAT,custom:C,equipment,customItems}
+      :{id,ts:Date.now(),type:"standard",client,evDate,evType,notes,guests,menuId,svcId,coop,total:stdTotal,menuName:menu.name};
+    try{
+      await window.storage.set(`cq:${id}`,JSON.stringify(q));
+      try{await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:EMAILJS.serviceId,template_id:EMAILJS.templateId,user_id:EMAILJS.publicKey,template_params:{quote_id:id,client_name:(isCustom?cc.name:client.name)||"–",event_date:(isCustom?cDate:evDate)||"–",guests:isCustom?C.guests:guests,total:fmt(isCustom?totalInclVAT:stdTotal),event_name:isCustom?C.eventName:menu.name}})});}catch{}
+      await loadAll();setStatus("saved");
+    }catch{setStatus("error");}
+    setTimeout(()=>setStatus(null),3000);
+  }
+  async function saveTemplate(){
+    const name=tplName.trim()||C.eventName;
+    const tpl={id:`tpl_${Date.now()}`,savedAt:Date.now(),name,config:C,equipment};
+    await window.storage.set(`tpl:${tpl.id}`,JSON.stringify(tpl));
+    await loadAll();setModal(null);setTplName("");
+  }
+  async function deleteTemplate(id){try{await window.storage.delete(`tpl:${id}`);await loadAll();}catch{}}
+  async function deleteQuote(id){try{await window.storage.delete(`cq:${id}`);await loadAll();}catch{}}
+  function loadQuote(q){
+    if(q.type==="custom"){setCc(q.client||{name:"",email:"",phone:"",company:""});setCDate(q.evDate||"");setCNotes(q.notes||"");if(q.custom)setC(q.custom);if(q.equipment)setEquipment(q.equipment);if(q.customItems)setCustomItems(q.customItems);setCQid(q.id);setTab("custom");}
+    else{setClient(q.client||{name:"",email:"",phone:"",company:""});setEvDate(q.evDate||"");setEvType(q.evType||EVENT_TYPES[0]);setNotes(q.notes||"");setGuests(q.guests||10);setMenuId(q.menuId||"bistro");setSvcId(q.svcId||"pickup");setCoop(q.coop||false);setQid(q.id);setTab("standard");}
+    setModal(null);
+  }
+  function loadTemplate(tpl){setC({...defaultCustom,...tpl.config});if(tpl.equipment)setEquipment(tpl.equipment);setTab("custom");setModal(null);setCQid(genId());}
+
+  function buildHTML(isCustom,reviewMode){
+    const cl=isCustom?cc:client,dt=isCustom?cDate:evDate,nt=isCustom?cNotes:notes,thisQid=isCustom?cQid:qid;
+    const reviewBanner=reviewMode?`<div style="background:#fef9c3;border:2px dashed #ca8a04;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#78350f"><strong>⚠️ INTERNAL REVIEW DRAFT — Not for client distribution</strong></div>`:"";
+    let costBlock="";
+    if(isCustom&&reviewMode){costBlock=`<h3 style="font-size:13px;margin:20px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px">Cost Breakdown (internal)</h3>
+    <table style="font-size:12px;border-collapse:collapse;width:100%">
+      <tr style="background:#f9fafb"><td style="padding:4px 8px;font-weight:700;border:1px solid #e5e7eb">Item</td><td style="padding:4px 8px;font-weight:700;border:1px solid #e5e7eb">Calculation</td><td style="padding:4px 8px;text-align:right;font-weight:700;border:1px solid #e5e7eb">Amount</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Ingredients</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${fmt(C.ingredientPP)}/pax × ${C.guests}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(ingCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Prep labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.prepStaff} staff × ${C.prepHours}h × ${fmt(prepRate)}/hr (base)</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(prepCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">On-location labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.locationStaff} staff × ${C.locationHours}h @ ×${fieldMult} ${dayType.label}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(locCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Travel labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.travelStaff} staff × ${C.travelHours}h @ ${fmt(fieldRate)}/hr</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(travCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Planning overhead</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.planningHours}h × ${fmt(C.planningRate*C.salaryCosts)}/hr</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(planCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Transport</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.vehicles} vehicle(s) × ${C.kmOneWay*2}km @ ${fmt(Math.round(vehicleCostPerKm))}/km</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(transCost)}</td></tr>
+      <tr style="background:#f3f4f6"><td colspan="3" style="padding:6px 8px;font-weight:700;border:1px solid #e5e7eb;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280">Equipment — ${equipment.filter(e=>e.on).length} active items</td></tr>
+      ${equipment.filter(e=>e.on&&e.cost>0).map(e=>`<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#374151">${e.name}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} × ${fmt(e.cost)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(e.cost*e.qty)}</td></tr>`).join("")}
+      ${customItems.filter(e=>e.cost>0).map(e=>`<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#374151">${e.name||"Custom item"}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} × ${fmt(e.cost||0)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt((e.cost||0)*(e.qty||1))}</td></tr>`).join("")}
+      <tr style="background:#fafafa"><td style="padding:4px 8px;border:1px solid #e5e7eb;font-weight:600">Equipment subtotal</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb;font-weight:600">${fmt(equipTotal)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Consumables</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${fmt(C.consumablesPP)}/pax × ${C.guests}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(consCost)}</td></tr>
+      ${C.extraCostsFlat>0?`<tr><td style="padding:4px 8px;border:1px solid #e5e7eb">${C.extraCostsLabel}</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(C.extraCostsFlat)}</td></tr>`:""}
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Contingency (${C.contingencyPct}%)</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(contingencyAmt)}</td></tr>
+      <tr style="background:#f0fdf4"><td colspan="2" style="padding:6px 8px;font-weight:700;border:1px solid #e5e7eb">Total cost → margin (${C.targetMarginPct}% target / ${pct(actualMargin)} actual)</td><td style="padding:6px 8px;text-align:right;font-weight:700;border:1px solid #e5e7eb">${fmt(totalCost)} → +${fmt(revNeeded-totalCost)}</td></tr>
+    </table>
+    <div style="margin-top:8px;background:#fef3c7;border-radius:6px;padding:8px 12px;font-size:12px">
+      <strong>VAT:</strong> ${isBundle?`All at 11% (transport bundled into catering)`:`Food/service ${fmt(foodVAT)} (11%) + Transport ${fmt(transVAT)} (24%) = ${fmt(totalVAT)}`}
+    </div>`;}
+    const feedbackBlock=reviewMode?`<div style="margin-top:28px;border-top:2px dashed #ca8a04;padding-top:16px"><h3 style="font-size:13px;color:#78350f;margin-bottom:10px">✏️ Review Feedback</h3><table style="width:100%;font-size:12px;border-collapse:collapse">${["Ingredient cost accurate?","Labour hours realistic?","Equipment list complete?","Margin acceptable?","Pricing competitive?","Other comments"].map(q=>`<tr><td style="padding:8px 10px;border:1px solid #e5e7eb;width:40%">${q}</td><td style="padding:8px 10px;border:1px solid #e5e7eb">&nbsp;</td></tr>`).join("")}</table><p style="font-size:11px;color:#9ca3af;margin-top:8px">Reviewed by: ___________________ &nbsp;&nbsp; Date: ___________________</p></div>`:"";
+    let rows=isCustom?`
+      <tr><td><strong>${C.eventName}</strong> — ${C.guests} guests</td><td></td></tr>
+      <tr><td style="color:#6b7280;padding-left:12px">Ingredients (${fmt(C.ingredientPP)}/pax × ${C.guests})</td><td style="text-align:right;color:#6b7280">${fmt(ingCost)}</td></tr>
+      <tr><td style="color:#6b7280;padding-left:12px">Labour (prep + location + travel + planning)</td><td style="text-align:right;color:#6b7280">${fmt(labourTotal)}</td></tr>
+      ${isBundle?"":`<tr><td style="color:#6b7280;padding-left:12px">Transport (${C.vehicles} vehicle${C.vehicles>1?"s":""}, ${C.kmOneWay*2}km)</td><td style="text-align:right;color:#6b7280">${fmt(transCost)}</td></tr>`}
+      <tr><td style="color:#6b7280;padding-left:12px">Equipment & consumables</td><td style="text-align:right;color:#6b7280">${fmt(equipTotal+consCost)}</td></tr>
+      ${C.extraCostsFlat>0?`<tr><td style="color:#6b7280;padding-left:12px">${C.extraCostsLabel}</td><td style="text-align:right;color:#6b7280">${fmt(C.extraCostsFlat)}</td></tr>`:""}
+      <tr class="sub"><td>Catering subtotal ex. VAT</td><td style="text-align:right">${fmt(isBundle?revNeeded:foodRevenue)}</td></tr>
+      <tr class="sub"><td>VAT ${C.vatRate}%</td><td style="text-align:right">${fmt(isBundle?Math.round(revNeeded*(C.vatRate/100)):foodVAT)}</td></tr>
+      ${!isBundle&&transCost>0?`<tr class="sub"><td>Transport ex. VAT</td><td style="text-align:right">${fmt(transCost)}</td></tr><tr class="sub"><td>Transport VAT 24%</td><td style="text-align:right">${fmt(transVAT)}</td></tr>`:""}
+    `:`
+      <tr><td><strong>${menu.name}</strong> — ${fmt(ppp)}/pax × ${guests}</td><td style="text-align:right">${fmt(fSub)}</td></tr>
+      ${(gDisc>0||cDisc>0)?`<tr><td style="color:#059669">Discount (${Math.round((1-(1-gDisc)*(1-cDisc))*100)}%)</td><td style="text-align:right;color:#059669">−${fmt(savedAmt)}</td></tr>`:""}
+      ${svc.bar?`<tr><td>Bar Package</td><td style="text-align:right">${fmt(bSub)}</td></tr>`:""}
+      ${svc.venue?`<tr><td>Venue Rental</td><td style="text-align:right">${fmt(vFee)}</td></tr>`:""}
+      ${del>0?`<tr><td>Delivery</td><td style="text-align:right">${fmt(del)}</td></tr>`:""}
+      ${svc.venue&&credit>0?`<tr><td style="color:#059669">Venue Credit</td><td style="text-align:right;color:#059669">−${fmt(credit)}</td></tr>`:""}
+      <tr class="sub"><td>Subtotal ex. VAT</td><td style="text-align:right">${fmt(exVAT)}</td></tr>
+      <tr class="sub"><td>VAT</td><td style="text-align:right">${fmt(Math.round(fSub*VAT_FOOD)+Math.round(bSub*VAT_BAR))}</td></tr>
+    `;
+    const totStr=isCustom?fmt(totalInclVAT):fmt(stdTotal);
+    return`<html><head><style>body{font-family:Georgia,serif;color:#111;max-width:720px;margin:0 auto;padding:24px;font-size:14px}.hdr{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:18px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}td{padding:4px 0}tr.sub td{border-top:1px solid #ddd;padding-top:7px;font-size:12px;color:#666}tr.tot td{border-top:2px solid #111;padding-top:10px;font-size:17px;font-weight:700}.pol{margin-top:24px;border-top:1px solid #ddd;padding-top:14px;font-size:11px;color:#666;line-height:1.9}</style></head><body>
+    ${reviewBanner}<div class="hdr"><div><strong style="font-size:20px">Fröken Selfoss</strong><br><span style="font-size:13px;color:#666">Catering Quote${reviewMode?" — Internal Review":""}</span><br><span style="font-size:11px;color:#aaa">Brúartorg, Selfoss · +354 451-3320 · frokenselfoss.is</span></div>
+    <div style="text-align:right"><span style="font-size:11px;color:#aaa">Quote</span><br><strong style="font-size:15px">${thisQid}</strong><br><span style="font-size:11px;color:#aaa">${new Date().toLocaleDateString("en-GB")}</span></div></div>
+    <div style="margin-bottom:16px;font-size:13px;line-height:1.7"><strong>${cl.name||"Client"}</strong>${cl.company?`<br>${cl.company}`:""}${cl.email?`<br>${cl.email}`:""}${cl.phone?`<br>${cl.phone}`:""}
+    <br><em>${dt||"Date TBD"} · ${isCustom?C.eventName:evType} · ${isCustom?C.guests:guests} guests</em></div>
+    <table>${rows}<tr class="tot"><td>TOTAL (incl. VAT)</td><td style="text-align:right">${totStr}</td></tr>
+    ${isCustom?`<tr><td style="padding-top:5px;color:#92400e"><strong>Per person incl. VAT</strong></td><td style="text-align:right;color:#92400e"><strong>${fmt(ppInclVAT)}</strong></td></tr>`:`<tr><td style="padding-top:5px;color:#92400e"><strong>Per person incl. VAT</strong></td><td style="text-align:right;color:#92400e"><strong>${fmt(Math.round(stdTotal/guests))}</strong></td></tr>`}
+    </table>${nt?`<p style="font-size:12px;margin-top:10px"><strong>Notes:</strong> ${nt}</p>`:""}
+    ${costBlock}${feedbackBlock}
+    ${!reviewMode?`<div class="pol"><strong>Booking Policy</strong><br>${activePolicies.map(p=>`${p.icon} ${p.text}`).join("<br>")}</div>`:""}
+    ${!reviewMode?`<script>setTimeout(()=>window.print(),500)</script>`:""}</body></html>`;
+  }
+  function openPrint(isCustom,rm){setPrintContent({html:buildHTML(isCustom,rm),reviewMode:rm});setTimeout(()=>window.scrollTo(0,0),0);}
+  function doPrint(){const iframe=printRef.current&&printRef.current.querySelector("iframe");if(iframe&&iframe.contentWindow){iframe.contentWindow.focus();iframe.contentWindow.print();}}
+
+  const menuCats=[...new Set(MENUS.map(m=>m.cat))];
+  const TB=(id,lbl)=><button onClick={()=>setTab(id)} style={{padding:"7px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:tab===id?"#e11d48":"transparent",color:tab===id?"white":"#6b7280"}}>{lbl}</button>;
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",minHeight:"100vh",background:"#f9fafb",fontSize:14,color:"#111",position:"relative"}}>
+      <style>{`@media(max-width:680px){.g2c{grid-template-columns:1fr!important}.mg{grid-template-columns:1fr!important}}`}</style>
+
+      {/* HEADER */}
+      <div style={{background:"white",borderBottom:"1px solid #e5e7eb",padding:"10px 14px",position:"sticky",top:0,zIndex:30,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"space-between"}}>
+        <div><div style={{fontWeight:700,fontSize:15}}>Fröken Selfoss</div><div style={{fontSize:10,color:"#9ca3af"}}>Catering Quote Calculator</div></div>
+        <div style={{display:"flex",gap:4,background:"#f3f4f6",borderRadius:10,padding:3}}>{TB("standard","📋 Standard")}{TB("custom","🔧 Custom Event")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+          <button onClick={()=>setModal("history")} style={BS("#fff","#e5e7eb","#374151")}>📜 History{quotes.length>0&&<Bge n={quotes.length}/>}</button>
+          <button onClick={()=>setModal("templates")} style={BS("#fff","#e5e7eb","#374151")}>📚 Menus{templates.length>0&&<Bge n={templates.length} color="#7c3aed"/>}</button>
+          <button onClick={()=>handleSave(tab==="custom")} disabled={status==="saving"} style={{...BS("#e11d48","#e11d48","white"),fontWeight:700,opacity:status==="saving"?0.6:1}}>
+            {status==="saving"?"…":status==="saved"?"✓ Saved!":"💾 Save"}
+          </button>
+          <button onClick={()=>openPrint(tab==="custom",false)} style={BS("#fff","#e5e7eb","#374151")}>🖨️ Client PDF</button>
+          <button onClick={()=>openPrint(tab==="custom",true)} style={BS("#fef9c3","#ca8a04","#92400e")}>👁️ Review PDF</button>
+        </div>
+      </div>
+
+      {/* ── STANDARD TAB ── */}
+      {tab==="standard"&&(
+        <div className="mg" style={{maxWidth:1080,margin:"0 auto",padding:14,display:"grid",gridTemplateColumns:"1fr 310px",gap:14}}>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"10px 14px",display:"flex",gap:10,alignItems:"center"}}>
+              <Tog val={coop} set={setCoop}/><div><div style={{fontWeight:600,fontSize:12}}>🤝 Co-op Partner Mode</div><div style={{fontSize:11,color:"#9ca3af"}}>12% wholesale discount — partner use only</div></div>
+            </div>
+            <Card title="👤 Client & Event"><div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[["Name","name","text"],["Company","company","text"],["Email","email","email"],["Phone","phone","tel"]].map(([l,k,t])=>(
+                <F key={k} label={l}><input type={t} value={client[k]} onChange={e=>setClient({...client,[k]:e.target.value})} style={I}/></F>
+              ))}
+              <F label="Event Date"><input type="date" value={evDate} onChange={e=>setEvDate(e.target.value)} style={I}/></F>
+              <F label="Event Type"><select value={evType} onChange={e=>setEvType(e.target.value)} style={{...I,background:"white"}}>{EVENT_TYPES.map(t=><option key={t}>{t}</option>)}</select></F>
+              <F label="Notes" span2><textarea rows={2} value={notes} onChange={e=>setNotes(e.target.value)} style={{...I,resize:"vertical"}}/></F>
+            </div></Card>
+            <Card title="👥 Guest Count">
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <div style={{flex:1}}><input type="range" min={1} max={500} value={guests} onChange={e=>setGuests(Number(e.target.value))} style={{width:"100%",accentColor:"#e11d48"}}/><div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9ca3af"}}><span>1</span><span>100</span><span>200</span><span>300</span><span>400</span><span>500</span></div></div>
+                <div style={{display:"flex",gap:4,alignItems:"center"}}><SB onClick={()=>setGuests(Math.max(1,guests-1))}>−</SB><input type="number" value={guests} onChange={e=>setGuests(Math.min(500,Math.max(1,Number(e.target.value))))} style={{width:56,textAlign:"center",border:"1px solid #e5e7eb",borderRadius:8,padding:4,fontSize:17,fontWeight:700,outline:"none"}}/><SB onClick={()=>setGuests(Math.min(500,guests+1))}>+</SB></div>
+              </div>
+              <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{[...TIERS].reverse().map(t=><span key={t.min} style={{fontSize:11,padding:"2px 10px",borderRadius:20,fontWeight:600,background:tier.min===t.min?"#fee2e2":"#f3f4f6",color:tier.min===t.min?"#be123c":"#9ca3af"}}>{t.label}{t.rate>0?` −${Math.round(t.rate*100)}%`:""}</span>)}</div>
+              {(gDisc>0||cDisc>0)&&<div style={{marginTop:8,fontSize:12,color:"#065f46",background:"#d1fae5",padding:"6px 12px",borderRadius:8}}>✓ {Math.round((1-(1-gDisc)*(1-cDisc))*100)}% off → {fmt(ppp)}/pax · Saving: <strong>{fmt(savedAmt)}</strong></div>}
+            </Card>
+            <Card title="🍽️ Menu">{menuCats.map(cat=>(
+              <div key={cat} style={{marginBottom:10}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:5}}>{cat}</div>
+                {MENUS.filter(m=>m.cat===cat).map(m=>{const ep=Math.round(m.price*(1-gDisc)*(1-cDisc)),sel=menuId===m.id;
+                  return <div key={m.id} onClick={()=>setMenuId(m.id)} style={{display:"flex",gap:8,padding:"8px 10px",borderRadius:9,border:`1.5px solid ${sel?"#e11d48":"#e5e7eb"}`,background:sel?"#fff1f2":"white",cursor:"pointer",marginBottom:4}}>
+                    <Rad sel={sel}/><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{m.name}</div><div style={{fontSize:11,color:"#6b7280"}}>{m.desc}{m.min>1&&` · Min ${m.min}`}</div></div>
+                    <div style={{textAlign:"right",flexShrink:0}}><div style={{fontWeight:700,color:"#be123c",fontSize:13}}>{fmt(ep)}</div>{ep<m.price&&<div style={{fontSize:10,color:"#9ca3af",textDecoration:"line-through"}}>{fmt(m.price)}</div>}<div style={{fontSize:10,color:"#9ca3af"}}>/pax</div></div>
+                  </div>;
+                })}
+              </div>
+            ))}</Card>
+            <Card title="⚙️ Service Level">{SERVICES.map(s=>{
+              const sel=svcId===s.id,perks=[];
+              if(s.staff)perks.push("Free delivery ≤30km",`${Math.round(CREDIT_RATE*100)}% venue credit`);
+              if(s.bar)perks.push("Bar incl.");if(s.venue)perks.push("Venue rental");
+              return <div key={s.id} onClick={()=>setSvcId(s.id)} style={{display:"flex",gap:8,padding:"8px 10px",borderRadius:9,border:`1.5px solid ${sel?"#e11d48":"#e5e7eb"}`,background:sel?"#fff1f2":"white",cursor:"pointer",marginBottom:5}}>
+                <Rad sel={sel}/><div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{s.icon} {s.name}</div>
+                {perks.length>0&&<div style={{display:"flex",gap:4,marginTop:3,flexWrap:"wrap"}}>{perks.map(p=><span key={p} style={{fontSize:10,background:"#d1fae5",color:"#065f46",padding:"2px 7px",borderRadius:20,fontWeight:600}}>{p}</span>)}</div>}</div>
+                <div style={{fontSize:11,color:"#6b7280",flexShrink:0}}>{s.delivery>0?`+${fmt(s.delivery)}`:s.staff?"Staff incl.":"Free"}</div>
+              </div>;
+            })}</Card>
+          </div>
+          <div style={{position:"sticky",top:60,alignSelf:"start",display:"flex",flexDirection:"column",gap:10}}>
+            <SHdr qid={qid}/>
+            <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"12px 14px"}}>
+              <div style={{borderBottom:"1px solid #f3f4f6",paddingBottom:10,marginBottom:10,fontSize:12}}>
+                <div style={{fontWeight:600}}>{client.name||"Client"}</div>
+                {client.company&&<div style={{fontSize:11,color:"#6b7280"}}>{client.company}</div>}
+                {client.email&&<div style={{fontSize:11,color:"#6b7280"}}>{client.email}</div>}
+                <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>{evDate||"Date TBD"} · {evType} · {guests} pax</div>
+                {coop&&<span style={{fontSize:10,background:"#fef3c7",color:"#92400e",padding:"2px 7px",borderRadius:4,fontWeight:700}}>PARTNER QUOTE</span>}
+              </div>
+              <LR label={menu.name} sub={`${fmt(ppp)}/pax×${guests}`} val={fmt(fSub)}/>
+              {(gDisc>0||cDisc>0)&&<LR label={`Discount (${Math.round((1-(1-gDisc)*(1-cDisc))*100)}%)`} val={`−${fmt(savedAmt)}`} green/>}
+              {svc.bar&&<LR label="Bar" val={fmt(bSub)}/>}{svc.venue&&<LR label="Venue Rental" val={fmt(vFee)}/>}
+              {del>0&&<LR label="Delivery" val={fmt(del)}/>}{svc.venue&&credit>0&&<LR label="Venue Credit" val={`−${fmt(credit)}`} green/>}
+              <div style={{borderTop:"1px solid #f3f4f6",margin:"8px 0 4px"}}/>
+              <LR label="Subtotal ex. VAT" val={fmt(exVAT)} muted/><LR label="VAT" val={fmt(Math.round(fSub*VAT_FOOD)+Math.round(bSub*VAT_BAR))} muted/>
+              <div style={{borderTop:"2px solid #111",marginTop:8,paddingTop:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontWeight:700,fontSize:17,marginBottom:6}}><span>Total (incl. VAT)</span><span>{fmt(stdTotal)}</span></div>
+                <div style={{background:"#fef3c7",borderRadius:8,padding:"8px 10px",marginBottom:8}}>
+                  <div style={{fontSize:11,color:"#92400e",fontWeight:700}}>Per person</div>
+                  <div style={{fontSize:19,fontWeight:700,color:"#78350f"}}>{fmt(Math.round(stdTotal/guests))} <span style={{fontSize:11,fontWeight:400}}>incl. VAT</span></div>
+                  <div style={{fontSize:12,color:"#92400e"}}>{fmt(ppp)} ex. VAT</div>
+                </div>
+                <div style={{background:"white",border:"1px solid #e5e7eb",borderRadius:8,padding:"10px 12px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}><div style={{fontSize:11,fontWeight:700}}>🎯 Price adjustment</div><div style={{fontSize:13,fontWeight:700,color:stdAdj>0?"#15803d":stdAdj<0?"#dc2626":"#6b7280"}}>{stdAdj>0?"+":""}{stdAdj}%</div></div>
+                  <input type="range" min={-20} max={30} value={stdAdj} onChange={e=>setStdAdj(Number(e.target.value))} style={{width:"100%",accentColor:"#e11d48"}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#9ca3af"}}><span>−20%</span><span>0</span><span>+30%</span></div>
+                </div>
+              </div>
+            </div>
+            <PC policy={policy} setPolicy={setPolicy} deposit={deposit} setDeposit={setDeposit} notice={notice} setNotice={setNotice} cancel={cancel} setCancel={setCancel} activePolicies={activePolicies}/>
+          </div>
+        </div>
+      )}
+
+      {/* ── CUSTOM TAB ── */}
+      {tab==="custom"&&(
+        <div className="mg" style={{maxWidth:1080,margin:"0 auto",padding:14,display:"grid",gridTemplateColumns:"1fr 310px",gap:14}}>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+            {/* ── PRESET STRIP ── */}
+            <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"12px 14px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>⚡ Quick Start — pick an event type</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {PRESETS.map(p=>(
+                  <button key={p.id} onClick={()=>applyPreset(p)} title={p.desc}
+                    style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",border:"1px solid #e5e7eb",borderRadius:20,background:"white",cursor:"pointer",fontSize:12,fontWeight:600,color:"#374151",transition:"all 0.1s"}}
+                    onMouseEnter={e=>{e.currentTarget.style.background="#fff1f2";e.currentTarget.style.borderColor="#e11d48";e.currentTarget.style.color="#be123c";}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="white";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#374151";}}>
+                    <span>{p.icon}</span><span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Saved templates */}
+            {templates.length>0&&<div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"10px 14px"}}>
+              <div style={{fontSize:11,fontWeight:700,color:"#6b7280",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>📚 Saved Templates</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {templates.map(t=><button key={t.id} onClick={()=>loadTemplate(t)} style={{background:"#f5f3ff",color:"#5b21b6",border:"1px solid #ddd6fe",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>{t.name}</button>)}
+                <button onClick={()=>setModal("templates")} style={{background:"#f9fafb",color:"#9ca3af",border:"1px dashed #d1d5db",borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer"}}>manage →</button>
+              </div>
+            </div>}
+
+            <Card title="👤 Client & Event"><div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <F label="Event / Menu Name" span2><input value={C.eventName} onChange={e=>upd("eventName",e.target.value)} style={I}/></F>
+              {[["Name","name","text"],["Company","company","text"],["Email","email","email"],["Phone","phone","tel"]].map(([l,k,t])=>(
+                <F key={k} label={l}><input type={t} value={cc[k]||""} onChange={e=>setCc({...cc,[k]:e.target.value})} style={I}/></F>
+              ))}
+              <F label="Event Date"><input type="date" value={cDate} onChange={e=>setCDate(e.target.value)} style={I}/></F>
+              <F label="Guest Count"><div style={{display:"flex",gap:4,alignItems:"center"}}><SB onClick={()=>upd("guests",Math.max(1,C.guests-10))}>−</SB><input type="number" value={C.guests} onChange={e=>upd("guests",Math.min(500,Math.max(1,parseInt(e.target.value)||1)))} style={{...I,textAlign:"center",fontWeight:700,fontSize:15,flex:1}}/><SB onClick={()=>upd("guests",Math.min(500,C.guests+10))}>+</SB></div></F>
+              <F label="Notes" span2><textarea rows={2} value={cNotes} onChange={e=>setCNotes(e.target.value)} style={{...I,resize:"vertical"}}/></F>
+            </div></Card>
+
+            <Card title="🧂 Ingredients"><div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <F label="Cost per person ex. VAT (kr)"><input type="number" value={C.ingredientPP} onChange={updN("ingredientPP")} style={I}/></F>
+              <F label="Total"><Ro val={fmt(ingCost)}/></F>
+            </div></Card>
+
+            <Card title="👨‍🍳 Labour">
+              <div style={{marginBottom:10,padding:"8px 12px",borderRadius:8,border:`1.5px solid ${dayType.color}20`,background:`${dayType.color}10`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontWeight:700,fontSize:12,color:dayType.color}}>{dayType.label}</div>
+                  <label style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}><Tog val={C.autoOvertime} set={v=>upd("autoOvertime",v)}/><span style={{fontSize:11,color:"#6b7280"}}>Auto-detect</span></label>
+                </div>
+                <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <F label="Event start time"><input type="time" value={C.eventStartTime} onChange={e=>upd("eventStartTime",e.target.value)} style={I}/></F>
+                  {C.autoOvertime?<F label="Detected multiplier"><Ro val={`×${fieldMult} — ${dayType.type==="daytime"?"splits at 17:00":dayType.label}`}/></F>
+                    :<F label="Manual multiplier"><input type="number" step={0.01} value={C.overtimeMult} onChange={updN("overtimeMult")} style={I}/></F>}
+                </div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:8}}>
+                  {[["☀️ Daytime","1.0","#15803d"],["🌆 Evening","1.33","#7c3aed"],["📅 Weekend","1.45","#d97706"],["🎄 Holiday","1.9","#dc2626"]].map(([lbl,m,c])=>(
+                    <div key={m} style={{fontSize:10,padding:"2px 8px",borderRadius:20,background:`${c}15`,color:c,fontWeight:600,border:`1px solid ${c}40`}}>{lbl} ×{m}</div>
+                  ))}
+                </div>
+              </div>
+              <div style={{fontSize:11,color:"#6b7280",marginBottom:10,padding:"6px 10px",background:"#f9fafb",borderRadius:8,display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                <div>Prep rate: <strong style={{color:"#111"}}>{fmt(prepRate)}/hr</strong> <span style={{color:"#9ca3af"}}>(base only)</span></div>
+                <div>Field rate: <strong style={{color:dayType.color}}>{fmt(fieldRate)}/hr</strong></div>
+                <div style={{gridColumn:"1/-1",marginTop:2,color:"#9ca3af"}}>Salary costs: ×{SALARY_COSTS} fixed (pension + holiday pay)</div>
+              </div>
+              <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <F label="Base hourly rate (kr)"><input type="number" value={C.baseRate} onChange={updN("baseRate")} style={I}/></F>
+              </div>
+              <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Hours breakdown</div>
+              {/* Prep */}
+              <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr 80px 100px",gap:6,marginBottom:4,alignItems:"end"}}>
+                <F label="Prep hrs per staff (all days)"><input type="number" step={0.5} value={C.prepHours} onChange={updN("prepHours")} style={I}/></F>
+                <F label="Staff"><input type="number" value={C.prepStaff} onChange={updN("prepStaff")} style={I}/></F>
+                <F label="Staff-hrs"><Ro val={(C.prepHours*C.prepStaff).toFixed(1)+"h"}/></F>
+                <F label="Cost"><Ro val={fmt(prepCost)} bold/></F>
+              </div>
+              <div style={{fontSize:11,color:"#6b7280",padding:"4px 8px",background:"#f9fafb",borderRadius:6,marginBottom:8}}>💡 Total wall-clock prep hours per person across all days combined.</div>
+              {/* Location */}
+              <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr 80px 100px",gap:6,marginBottom:2,alignItems:"end"}}>
+                <F label="On-location hrs (all staff simultaneous)"><input type="number" step={0.5} value={C.locationHours} onChange={updN("locationHours")} style={I}/></F>
+                <F label="Staff"><input type="number" value={C.locationStaff} onChange={updN("locationStaff")} style={I}/></F>
+                <F label="Staff-hrs"><Ro val={(C.locationHours*C.locationStaff).toFixed(1)+"h"}/></F>
+                <F label="Cost"><Ro val={fmt(locCost)} bold/></F>
+              </div>
+              {dayType.type==="daytime"&&(dayHrs>0||eveHrs>0)&&<div style={{marginLeft:8,marginBottom:8,padding:"5px 10px",background:"#f5f3ff",borderRadius:6,fontSize:11,color:"#6b7280"}}>↳ {dayHrs.toFixed(1)}h until 17:00 @ {fmt(prepRate)}/hr + {eveHrs.toFixed(1)}h after 17:00 @ {fmt(Math.round(C.baseRate*1.33*C.salaryCosts))}/hr</div>}
+              {/* Travel — linked to km */}
+              <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr 80px 100px",gap:6,marginBottom:2,alignItems:"end"}}>
+                <F label={`Travel hrs${suggestedTravelHrs>0?` (${C.kmOneWay*2}km ÷ ${C.avgSpeedKmh}km/h = ${suggestedTravelHrs}h suggested)`:""}`}>
+                  <div style={{position:"relative"}}>
+                    <input type="number" step={0.5} value={C.travelHours} onChange={updN("travelHours")} style={I}/>
+                    {suggestedTravelHrs>0&&!travelLinked&&<div style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",fontSize:10,color:"#e11d48",cursor:"pointer",fontWeight:700}} onClick={()=>upd("travelHours",suggestedTravelHrs)} title="Sync to km">↻{suggestedTravelHrs}h</div>}
+                    {travelLinked&&<div style={{position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",fontSize:10,color:"#15803d"}}>🔗</div>}
+                  </div>
+                </F>
+                <F label="Staff"><input type="number" value={C.travelStaff} onChange={updN("travelStaff")} style={I}/></F>
+                <F label="Staff-hrs"><Ro val={(C.travelHours*C.travelStaff).toFixed(1)+"h"}/></F>
+                <F label="Cost"><Ro val={fmt(travCost)} bold/></F>
+              </div>
+              <div style={{marginBottom:8}}>
+                <F label="Avg. speed for travel estimate (km/h)"><input type="number" value={C.avgSpeedKmh} onChange={updN("avgSpeedKmh")} style={{...I,width:100}}/></F>
+              </div>
+              {/* Planning */}
+              <div style={{borderTop:"1px solid #f3f4f6",paddingTop:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#92400e",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:5}}>⚠️ Planning & Manager Overhead</div>
+                <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr 100px",gap:6,alignItems:"end"}}>
+                  <F label="Planning hours"><input type="number" step={0.5} value={C.planningHours} onChange={updN("planningHours")} style={I}/></F>
+                  <F label="Manager rate (kr/hr)"><input type="number" value={C.planningRate} onChange={updN("planningRate")} style={I}/></F>
+                  <F label="Cost"><Ro val={fmt(planCost)} bold/></F>
+                </div>
+              </div>
+              <div style={{textAlign:"right",fontWeight:700,fontSize:13,marginTop:8}}>Total labour: {fmt(labourTotal)}</div>
+            </Card>
+
+            <Card title="🚗 Transport">
+              {/* Zone */}
+              <div style={{display:"flex",gap:6,marginBottom:12}}>
+                {[["selfoss","📍 In Selfoss"],["outside","🗺️ Outside Selfoss"]].map(([v,lbl])=>(
+                  <button key={v} onClick={()=>upd("deliveryZone",v)} style={{flex:1,padding:"8px",border:`1.5px solid ${C.deliveryZone===v?"#e11d48":"#e5e7eb"}`,borderRadius:8,background:C.deliveryZone===v?"#fff1f2":"white",color:C.deliveryZone===v?"#be123c":"#6b7280",fontWeight:600,fontSize:13,cursor:"pointer"}}>{lbl}</button>
+                ))}
+              </div>
+              {/* VAT mode */}
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>VAT treatment</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[["separate24","🧾 Separate line (24%)","For corporate/B2B clients who reclaim VAT"],["bundle11","📦 Bundle into catering (11%)","For private clients — lower total price"]].map(([v,lbl,tip])=>(
+                    <button key={v} onClick={()=>upd("transportVATMode",v)} title={tip}
+                      style={{flex:1,padding:"8px 10px",border:`1.5px solid ${C.transportVATMode===v?"#e11d48":"#e5e7eb"}`,borderRadius:8,background:C.transportVATMode===v?"#fff1f2":"white",color:C.transportVATMode===v?"#be123c":"#6b7280",fontWeight:600,fontSize:11,cursor:"pointer",lineHeight:1.3}}>
+                      {lbl}<div style={{fontSize:10,fontWeight:400,color:C.transportVATMode===v?"#9f1239":"#9ca3af",marginTop:2}}>{tip}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {C.deliveryZone==="selfoss"?(
+                <div style={{background:C.guests>=30?"#f0fdf4":"#fef9c3",border:`1px solid ${C.guests>=30?"#bbf7d0":"#fcd34d"}`,borderRadius:8,padding:"12px 14px",fontSize:13}}>
+                  {C.guests>=30?<div style={{color:"#15803d",fontWeight:700}}>✓ Free delivery — {C.guests} guests (30+ pax in Selfoss)</div>
+                    :<div style={{color:"#92400e",fontWeight:700}}>2.990 kr flat — under 30 pax in Selfoss</div>}
+                </div>
+              ):(
+                <>
+                  <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                    <F label="Distance one way (km)"><input type="number" value={C.kmOneWay} onChange={e=>{const v=parseFloat(e.target.value)||0;upd("kmOneWay",v);if(travelLinked)upd("travelHours",round5((v*2)/C.avgSpeedKmh));}} style={I}/></F>
+                    <F label="Vehicles"><input type="number" value={C.vehicles} onChange={updN("vehicles")} style={I}/></F>
+                  </div>
+                  <div style={{background:"#f9fafb",borderRadius:8,padding:"10px 12px",marginBottom:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Cost per km breakdown</div>
+                    <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                      <F label="Fuel price per liter (kr)"><input type="number" value={C.fuelPricePerL} onChange={updN("fuelPricePerL")} style={I}/></F>
+                      <F label="Consumption (L/100km)"><input type="number" step={0.5} value={C.fuelConsumptionPer100} onChange={updN("fuelConsumptionPer100")} style={I}/></F>
+                      <F label="Vehicle overhead (kr/km)"><input type="number" value={C.vehicleOverheadPerKm} onChange={updN("vehicleOverheadPerKm")} style={I}/></F>
+                      <F label="Kílómetragjald (fixed by law)"><Ro val={`${KM_TAX} kr/km (vans ≤3.5t)`}/></F>
+                    </div>
+                    <div style={{fontSize:10,color:"#9ca3af",marginTop:6}}>💡 Vehicle overhead: tyres, oil, brakes, insurance amortized per km. Typically 15–25 kr/km for a van.</div>
+                    <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontSize:12,borderTop:"1px solid #e5e7eb",paddingTop:8}}>
+                      <span style={{color:"#6b7280"}}>Fuel {fmt(Math.round(C.fuelPricePerL*(C.fuelConsumptionPer100/100)))} + tax {fmt(Math.round(KM_TAX))} + overhead {fmt(C.vehicleOverheadPerKm)} =</span>
+                      <strong>{fmt(Math.round(vehicleCostPerKm))}/km per vehicle</strong>
+                    </div>
+                  </div>
+                  <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                    <F label="Base fee (kr, optional — 0 for km-only)"><input type="number" value={C.deliveryBaseFee} onChange={updN("deliveryBaseFee")} style={I}/></F>
+                    <F label="Total transport cost"><Ro val={fmt(transCost)} bold/></F>
+                  </div>
+                  <div style={{fontSize:11,color:"#9ca3af"}}>
+                    {C.vehicles} vehicle{C.vehicles>1?"s":""} × {C.kmOneWay*2}km × {fmt(Math.round(vehicleCostPerKm))}/km = {fmt(Math.round(kmCost))}{(C.deliveryBaseFee||0)>0?` + ${fmt(C.deliveryBaseFee)} base fee`:""} · Fuel ref: <a href="https://gasvaktin.is" target="_blank" style={{color:"#e11d48"}}>gasvaktin.is</a> (~215 kr/L May 2026)
+                  </div>
+                </>
+              )}
+            </Card>
+
+            <Card title="🪑 Equipment & Setup">
+              <div className="g2c" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                <F label="Hot dishes on menu (auto-calc chafing/fuel)"><input type="number" value={C.hotDishes} onChange={updN("hotDishes")} style={I}/></F>
+                <F label="Consumables per person (kr)"><input type="number" value={C.consumablesPP} onChange={updN("consumablesPP")} style={I}/></F>
+                <F label="Extra cost label"><input value={C.extraCostsLabel} onChange={e=>upd("extraCostsLabel",e.target.value)} style={I}/></F>
+                <F label="Extra cost flat (kr)"><input type="number" value={C.extraCostsFlat} onChange={updN("extraCostsFlat")} style={I}/></F>
+              </div>
+              <EquipSection equipment={equipment} setEquipment={setEquipment} onRefresh={refreshEquipQty} customItems={customItems} setCustomItems={setCustomItems}/>
+              <SetupNotes guests={C.guests} hotDishes={C.hotDishes}/>
+            </Card>
+
+            <Card title="🏢 Fixed Overhead & Margin">
+              <div style={{fontSize:12,color:"#374151",marginBottom:12,padding:"8px 12px",background:"#f0f9ff",borderRadius:8,lineHeight:1.6}}>
+                Overhead covers rent, electricity, subscriptions, insurance and accounting — charged as a <strong>% of revenue</strong> so small parties pay less and large parties pay their fair share automatically.
+              </div>
+              <div style={{marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontWeight:700,fontSize:12}}>Overhead %</div>
+                  <div style={{fontSize:16,fontWeight:700,color:"#0369a1"}}>{C.overheadPct}%</div>
+                </div>
+                <input type="range" min={0} max={25} step={1} value={C.overheadPct} onChange={e=>upd("overheadPct",Number(e.target.value))} style={{width:"100%",accentColor:"#0369a1"}}/>
+                <div style={{display:"flex",gap:4,marginTop:6}}>
+                  {[5,8,10,12,15].map(v=>(
+                    <button key={v} onClick={()=>upd("overheadPct",v)} style={{flex:1,padding:"4px 0",fontSize:11,fontWeight:600,border:`1px solid ${C.overheadPct===v?"#0369a1":"#e5e7eb"}`,borderRadius:6,background:C.overheadPct===v?"#e0f2fe":"white",color:C.overheadPct===v?"#0369a1":"#6b7280",cursor:"pointer"}}>{v}%</button>
+                  ))}
+                </div>
+                <div style={{marginTop:8,fontSize:11,color:"#6b7280",lineHeight:1.7}}>
+                  At this quote: <strong style={{color:"#0369a1"}}>{fmt(overheadContribution)}</strong> overhead contribution → <strong style={{color:"#0369a1"}}>{fmt(Math.round(overheadContribution/Math.max(C.guests,1)))}/pax</strong><br/>
+                  <span style={{color:"#9ca3af"}}>Typical range: 8–12% for a catering operation where the restaurant also shares fixed costs. Use 12–18% if catering must cover all fixed costs alone.</span>
+                </div>
+              </div>
+              <div style={{borderTop:"1px solid #e5e7eb",paddingTop:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                  <div style={{fontWeight:700,fontSize:12}}>Profit Margin %</div>
+                  <div style={{fontSize:16,fontWeight:700,color:C.targetMarginPct>=20?"#15803d":C.targetMarginPct>=15?"#d97706":"#dc2626"}}>{C.targetMarginPct}%</div>
+                </div>
+                <input type="range" min={5} max={50} value={C.targetMarginPct} onChange={e=>upd("targetMarginPct",Number(e.target.value))} style={{width:"100%",accentColor:"#e11d48"}}/>
+                <div style={{display:"flex",gap:4,marginTop:6}}>
+                  {[15,20,25,28,30].map(v=>(
+                    <button key={v} onClick={()=>upd("targetMarginPct",v)} style={{flex:1,padding:"4px 0",fontSize:11,fontWeight:600,border:`1px solid ${C.targetMarginPct===v?"#e11d48":"#e5e7eb"}`,borderRadius:6,background:C.targetMarginPct===v?"#fff1f2":"white",color:C.targetMarginPct===v?"#be123c":"#6b7280",cursor:"pointer"}}>{v}%</button>
+                  ))}
+                </div>
+                <div style={{marginTop:8,padding:"8px 10px",background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,fontSize:12,color:"#15803d"}}>
+                  <strong>Revenue split: {C.targetMarginPct}% profit + {C.overheadPct}% overhead + {Math.round(100-C.targetMarginPct-C.overheadPct)}% direct costs</strong>
+                  <div style={{fontSize:11,color:"#166534",marginTop:2}}>Actual margin: {pct(actualMargin)} · Overhead: {fmt(overheadContribution)} · Profit: {fmt(Math.round(revNeeded*C.targetMarginPct/100))}</div>
+                </div>
+              </div>
+            </Card>
+
+            <div style={{background:"#f5f3ff",border:"1px solid #ddd6fe",borderRadius:10,padding:"12px 14px",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13,color:"#5b21b6"}}>📚 Save as Menu Template</div><div style={{fontSize:11,color:"#7c3aed",marginTop:2}}>Stores all cost parameters + equipment list for instant reuse.</div></div>
+              <button onClick={()=>{setTplName(C.eventName);setModal("saveTemplate");}} style={{background:"#7c3aed",color:"white",border:"none",borderRadius:8,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>Save Template →</button>
+            </div>
+          </div>
+
+          {/* Custom summary sidebar */}
+          <div style={{position:"sticky",top:60,alignSelf:"start",display:"flex",flexDirection:"column",gap:10}}>
+            <SHdr qid={cQid}/>
+            <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"12px 14px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{fontSize:12,fontWeight:700}}>🎯 Target Margin</div>
+                <div style={{fontSize:18,fontWeight:700,color:C.targetMarginPct>=28?"#15803d":C.targetMarginPct>=22?"#d97706":"#dc2626"}}>{C.targetMarginPct}%</div>
+              </div>
+              <input type="range" min={5} max={50} value={C.targetMarginPct} onChange={e=>upd("targetMarginPct",Number(e.target.value))} style={{width:"100%",accentColor:"#e11d48"}}/>
+              <div style={{display:"flex",gap:4,marginTop:6}}>
+                {[20,25,28,30,35].map(v=><button key={v} onClick={()=>upd("targetMarginPct",v)} style={{flex:1,padding:"4px 0",fontSize:11,fontWeight:600,border:`1px solid ${C.targetMarginPct===v?"#e11d48":"#e5e7eb"}`,borderRadius:6,background:C.targetMarginPct===v?"#fff1f2":"white",color:C.targetMarginPct===v?"#be123c":"#6b7280",cursor:"pointer"}}>{v}%</button>)}
+              </div>
+            </div>
+            <div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"12px 14px"}}>
+              <div style={{borderBottom:"1px solid #f3f4f6",paddingBottom:10,marginBottom:10,fontSize:12}}>
+                <div style={{fontWeight:700,fontSize:14}}>{C.eventName}</div>
+                <div style={{fontWeight:600,marginTop:2}}>{cc.name||"Client"}</div>
+                {cc.company&&<div style={{fontSize:11,color:"#6b7280"}}>{cc.company}</div>}
+                {cc.email&&<div style={{fontSize:11,color:"#6b7280"}}>{cc.email}</div>}
+                <div style={{fontSize:11,color:"#9ca3af",marginTop:2}}>{cDate||"Date TBD"} · {C.guests} guests</div>
+              </div>
+              <LR label="Ingredients" sub={`${fmt(C.ingredientPP)}/pax×${C.guests}`} val={fmt(ingCost)}/>
+              <LR label="Labour (all)" val={fmt(labourTotal)}/>
+              <LR label={C.transportVATMode==="separate24"?"Transport (24% VAT)":"Transport (bundled 11%)"} val={fmt(transCost)} muted={transCost===0}/>
+              <LR label={`Equipment (${equipment.filter(e=>e.on).length} items)`} val={fmt(equipTotal)}/>
+              <LR label="Consumables" val={fmt(consCost)}/>
+              {C.extraCostsFlat>0&&<LR label={C.extraCostsLabel} val={fmt(C.extraCostsFlat)}/>}
+              <LR label={`Fixed overhead (${C.eventsPerMonth} events/mo)`} val={fmt(perEventFixed)}/>
+              <LR label={`Contingency (${C.contingencyPct}%)`} val={fmt(contingencyAmt)}/>
+              <div style={{borderTop:"1px dashed #e5e7eb",margin:"8px 0 4px"}}/>
+              <LR label="Total cost" val={fmt(totalCost)} muted/>
+              <LR label={`Margin (${C.targetMarginPct}%)`} val={fmt(revNeeded-totalCost)} green/>
+              <div style={{borderTop:"1px solid #f3f4f6",margin:"8px 0 4px"}}/>
+              <LR label={`Food/service ex. VAT`} val={fmt(Math.round(foodRevenue))} muted/>
+              <LR label={`Food VAT (${C.vatRate}%)`} val={fmt(foodVAT)} muted/>
+              {C.transportVATMode==="separate24"&&transCost>0&&<>
+                <LR label="Transport ex. VAT" val={fmt(transCost)} muted/>
+                <LR label="Transport VAT (24%)" val={fmt(transVAT)} muted/>
+              </>}
+              <div style={{borderTop:"2px solid #111",marginTop:8,paddingTop:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontWeight:700,fontSize:16,marginBottom:6}}><span>Total (incl. VAT)</span><span style={{color:"#be123c"}}>{fmt(totalInclVAT)}</span></div>
+                <div style={{background:"#fef3c7",borderRadius:8,padding:"10px 12px"}}>
+                  <div style={{fontSize:11,color:"#92400e",fontWeight:700}}>Recommended per person</div>
+                  <div style={{fontSize:22,fontWeight:700,color:"#78350f"}}>{fmt(ppInclVAT)}</div>
+                  <div style={{fontSize:12,color:"#92400e"}}>{fmt(ppExVAT)} ex. VAT</div>
+                </div>
+              </div>
+            </div>
+            <PC policy={policy} setPolicy={setPolicy} deposit={deposit} setDeposit={setDeposit} notice={notice} setNotice={setNotice} cancel={cancel} setCancel={setCancel} activePolicies={activePolicies}/>
+          </div>
+        </div>
+      )}
+
+      {/* PRINT OVERLAY */}
+      {printContent&&(
+        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.7)",zIndex:100,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
+          <div style={{background:printContent.reviewMode?"#fef9c3":"#111827",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,position:"sticky",top:0,zIndex:101}}>
+            <div style={{fontWeight:700,color:printContent.reviewMode?"#78350f":"white",fontSize:14}}>{printContent.reviewMode?"👁️ Review Draft — Internal":"🖨️ Client Quote Preview"}</div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={doPrint} style={{background:"#e11d48",color:"white",border:"none",borderRadius:8,padding:"8px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>🖨️ Print / Save as PDF</button>
+              <button onClick={()=>setPrintContent(null)} style={{background:"rgba(255,255,255,0.15)",color:printContent.reviewMode?"#78350f":"white",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:600,fontSize:13,cursor:"pointer"}}>✕ Close</button>
+            </div>
+          </div>
+          <div ref={printRef} style={{flex:1,background:"#e5e7eb",padding:20}}>
+            <iframe srcDoc={printContent.html} sandbox="allow-same-origin allow-scripts allow-modals allow-popups" style={{width:"100%",maxWidth:760,height:900,margin:"0 auto",display:"block",border:"none",borderRadius:4,boxShadow:"0 4px 24px rgba(0,0,0,0.2)"}} title="Quote Preview"/>
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
+      {modal==="history"&&<Mdl title={`📜 Quote History (${quotes.length})`} onClose={()=>setModal(null)}>
+        {quotes.length===0?<p style={{color:"#9ca3af",fontSize:13}}>No saved quotes yet.</p>:quotes.map(q=>(
+          <div key={q.id} style={{display:"flex",gap:10,padding:"10px 12px",border:"1px solid #e5e7eb",borderRadius:9,marginBottom:6}}>
+            <div style={{flex:1,cursor:"pointer"}} onClick={()=>loadQuote(q)}>
+              <div style={{fontWeight:600,fontSize:13,display:"flex",gap:6,alignItems:"center"}}>{q.id}<span style={{fontSize:10,background:q.type==="custom"?"#e0e7ff":"#fce7f3",color:q.type==="custom"?"#3730a3":"#9d174d",padding:"1px 6px",borderRadius:4}}>{q.type==="custom"?"Custom":"Standard"}</span></div>
+              <div style={{fontSize:11,color:"#6b7280"}}>{q.client?.name||"No client"} · {q.evDate||"No date"} · {q.guests} guests</div>
+              <div style={{fontSize:10,color:"#9ca3af"}}>{q.eventName||q.menuName||""} · {dStr(q.ts)}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",justifyContent:"space-between",alignItems:"flex-end"}}>
+              <div style={{fontWeight:700,color:"#be123c",fontSize:13}}>{fmt(q.total||q.totalInclVAT||0)}</div>
+              <div style={{display:"flex",gap:4}}>
+                <button onClick={()=>loadQuote(q)} style={{fontSize:11,padding:"3px 8px",border:"1px solid #e5e7eb",borderRadius:6,cursor:"pointer",background:"white"}}>Load</button>
+                <button onClick={()=>deleteQuote(q.id)} style={{fontSize:11,padding:"3px 8px",border:"1px solid #fecaca",borderRadius:6,cursor:"pointer",background:"white",color:"#ef4444"}}>✕</button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </Mdl>}
+      {modal==="templates"&&<Mdl title={`📚 Menu Templates (${templates.length})`} onClose={()=>setModal(null)}>
+        {templates.length===0?<p style={{color:"#9ca3af",fontSize:13}}>No templates yet.</p>:templates.map(t=>(
+          <div key={t.id} style={{display:"flex",gap:10,padding:"10px 12px",border:"1px solid #ddd6fe",borderRadius:9,marginBottom:6,background:"#faf5ff"}}>
+            <div style={{flex:1,cursor:"pointer"}} onClick={()=>loadTemplate(t)}>
+              <div style={{fontWeight:700,fontSize:13,color:"#5b21b6"}}>{t.name}</div>
+              <div style={{fontSize:11,color:"#7c3aed"}}>{t.config?.guests} pax · {fmt(t.config?.ingredientPP||0)}/pax · {t.config?.targetMarginPct}% margin</div>
+              <div style={{fontSize:10,color:"#9ca3af"}}>Saved {dStr(t.savedAt)}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end",justifyContent:"center"}}>
+              <button onClick={()=>loadTemplate(t)} style={{fontSize:11,padding:"4px 10px",border:"none",borderRadius:6,cursor:"pointer",background:"#7c3aed",color:"white",fontWeight:600}}>Load</button>
+              <button onClick={()=>deleteTemplate(t.id)} style={{fontSize:11,padding:"3px 8px",border:"1px solid #fecaca",borderRadius:6,cursor:"pointer",background:"white",color:"#ef4444"}}>✕</button>
+            </div>
+          </div>
+        ))}
+        <button onClick={()=>setModal("saveTemplate")} style={{marginTop:8,width:"100%",padding:9,border:"1.5px dashed #c4b5fd",borderRadius:9,background:"none",cursor:"pointer",fontSize:13,color:"#7c3aed"}}>+ Save current as template</button>
+      </Mdl>}
+      {modal==="saveTemplate"&&<Mdl title="💾 Save Menu Template" onClose={()=>setModal(null)} small>
+        <p style={{fontSize:13,color:"#374151",marginBottom:12}}>Name this template — saves all cost params and equipment list.</p>
+        <F label="Template name"><input value={tplName} onChange={e=>setTplName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveTemplate()} placeholder={C.eventName} style={I} autoFocus/></F>
+        <div style={{display:"flex",gap:8,marginTop:14}}>
+          <button onClick={saveTemplate} style={{flex:1,padding:"9px",background:"#7c3aed",color:"white",border:"none",borderRadius:8,fontWeight:700,cursor:"pointer",fontSize:13}}>Save Template</button>
+          <button onClick={()=>setModal(null)} style={{padding:"9px 14px",border:"1px solid #e5e7eb",borderRadius:8,cursor:"pointer",background:"white",fontSize:13}}>Cancel</button>
+        </div>
+      </Mdl>}
+    </div>
+  );
+}
+
+// ── Shared micro-components ───────────────────────────────────
+const I={width:"100%",border:"1px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,boxSizing:"border-box",outline:"none",fontFamily:"inherit"};
+const Card=({title,children})=><div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:14}}><div style={{fontWeight:700,marginBottom:10}}>{title}</div>{children}</div>;
+const F=({label,children,span2})=><div style={span2?{gridColumn:"1/-1"}:{}}><div style={{fontSize:10,fontWeight:700,color:"#6b7280",marginBottom:3,textTransform:"uppercase",letterSpacing:"0.05em"}}>{label}</div>{children}</div>;
+const Ro=({val,bold})=><div style={{...I,background:"#f9fafb",color:bold?"#374151":"#6b7280",fontWeight:bold?700:400,cursor:"default"}}>{val}</div>;
+const SB=({onClick,children})=><button onClick={onClick} style={{width:28,height:28,borderRadius:7,border:"1px solid #e5e7eb",background:"white",cursor:"pointer",fontSize:15,fontWeight:700,flexShrink:0}}>{children}</button>;
+const Rad=({sel})=><div style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${sel?"#e11d48":"#d1d5db"}`,background:sel?"#e11d48":"white",marginTop:2,flexShrink:0}}/>;
+const Tog=({val,set})=><div onClick={()=>set(!val)} style={{width:36,height:20,borderRadius:10,background:val?"#e11d48":"#d1d5db",position:"relative",cursor:"pointer",flexShrink:0}}><div style={{position:"absolute",top:2,width:16,height:16,background:"white",borderRadius:"50%",boxShadow:"0 1px 3px rgba(0,0,0,.2)",transform:val?"translateX(18px)":"translateX(2px)",transition:"transform 0.2s"}}/></div>;
+const Bge=({n,color="#e11d48"})=><span style={{display:"inline-block",background:color,color:"white",borderRadius:20,fontSize:10,fontWeight:700,padding:"1px 6px",marginLeft:4}}>{n}</span>;
+const LR=({label,sub,val,green,muted})=><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}><div><span style={{fontSize:12,color:green?"#059669":muted?"#9ca3af":"#374151"}}>{label}</span>{sub&&<div style={{fontSize:10,color:"#9ca3af"}}>{sub}</div>}</div><span style={{fontWeight:muted?400:500,color:green?"#059669":muted?"#9ca3af":"#111",marginLeft:8,fontSize:12,flexShrink:0}}>{val}</span></div>;
+const SHdr=({qid})=><div style={{background:"#111827",color:"white",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div><div style={{fontWeight:700,fontSize:14}}>Fröken Selfoss</div><div style={{fontSize:10,color:"#9ca3af"}}>Brúartorg · +354 451-3320</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#9ca3af"}}>Quote</div><div style={{fontFamily:"monospace",fontSize:11,fontWeight:700}}>{qid}</div><div style={{fontSize:10,color:"#9ca3af"}}>{new Date().toLocaleDateString("en-GB")}</div></div></div>;
+const PC=({policy,setPolicy,deposit,setDeposit,notice,setNotice,cancel,setCancel,activePolicies})=>{
+  const [open,setOpen]=useState(false);
+  const updDep=(k,v)=>setDeposit(p=>({...p,[k]:v}));
+  const updNot=(k,v)=>setNotice(p=>({...p,[k]:v}));
+  const updCan=(k,v)=>setCancel(p=>({...p,[k]:v}));
+  const p1=deposit.p1||0,p2=deposit.p2||0,p3=Math.max(0,100-p1-p2);
+  return(<div style={{background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:12}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:open?10:0}}>
+      <div style={{fontWeight:700,fontSize:12}}>📋 Booking Policy</div>
+      <button onClick={()=>setOpen(o=>!o)} style={{fontSize:11,padding:"3px 10px",border:"1px solid #e5e7eb",borderRadius:6,background:"white",cursor:"pointer",color:"#6b7280",fontWeight:600}}>{open?"Done":"Edit"}</button>
+    </div>
+    {open&&(<div style={{marginBottom:12}}>
+      <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6}}>Show on quote</div>
+      {policy.map((p,i)=>(<label key={p.id} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:6,cursor:"pointer"}}>
+        <input type="checkbox" checked={p.on} onChange={e=>setPolicy(prev=>prev.map((x,j)=>j===i?{...x,on:e.target.checked}:x))} style={{marginTop:2,accentColor:"#e11d48"}}/>
+        <span style={{fontSize:11,color:p.on?"#374151":"#9ca3af",lineHeight:1.5}}>{p.icon} {
+          p.id==="deposit"?"Deposit terms (customizable below)":
+          p.id==="notice"?"Notice requirement (customizable below)":
+          p.id==="cancel"?"Cancellation policy (customizable below)":
+          p.text
+        }</span>
+      </label>))}
+
+      {/* Notice customizer */}
+      {policy.find(p=>p.id==="notice"&&p.on)&&(<div style={{marginTop:8,background:"#f9fafb",borderRadius:8,padding:"10px 12px",border:"1px solid #e5e7eb",marginBottom:8}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Notice requirement</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <input type="number" min={1} value={notice.smallHours} onChange={e=>updNot("smallHours",Number(e.target.value))} style={{...I,width:60,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>hours min. for</span>
+            <input type="number" min={1} value={notice.smallPax} onChange={e=>updNot("smallPax",Number(e.target.value))} style={{...I,width:60,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>or fewer guests</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <input type="number" min={1} value={notice.largeDays} onChange={e=>updNot("largeDays",Number(e.target.value))} style={{...I,width:60,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>days min. for larger events</span>
+          </div>
+          <div style={{fontSize:11,color:"#0369a1",background:"#e0f2fe",borderRadius:6,padding:"6px 10px"}}>
+            Preview: Minimum {notice.smallHours} hours for {notice.smallPax} or fewer guests. {notice.largeDays} days for larger events.
+          </div>
+        </div>
+      </div>)}
+
+      {/* Cancellation customizer */}
+      {policy.find(p=>p.id==="cancel"&&p.on)&&(<div style={{marginTop:0,background:"#f9fafb",borderRadius:8,padding:"10px 12px",border:"1px solid #e5e7eb",marginBottom:8}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Cancellation policy</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:"#374151",minWidth:80}}>Within {notice.smallHours}h:</span>
+            <input type="text" value={cancel.immediate} onChange={e=>updCan("immediate",e.target.value)} style={{...I,flex:1,padding:"4px 8px",fontSize:12}}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <input type="number" min={1} value={cancel.midDaysFrom} onChange={e=>updCan("midDaysFrom",Number(e.target.value))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>–</span>
+            <input type="number" min={1} value={cancel.midDaysTo} onChange={e=>updCan("midDaysTo",Number(e.target.value))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>days:</span>
+            <input type="number" min={0} max={100} value={cancel.mid} onChange={e=>updCan("mid",Number(e.target.value))} style={{...I,width:55,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>% charge</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <input type="number" min={1} value={cancel.free} onChange={e=>updCan("free",Number(e.target.value))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+            <span style={{fontSize:11,color:"#374151"}}>+ days before: free</span>
+          </div>
+          <div style={{fontSize:11,color:"#0369a1",background:"#e0f2fe",borderRadius:6,padding:"6px 10px"}}>
+            Preview: Within {notice.smallHours}h — {cancel.immediate}. {cancel.midDaysFrom}–{cancel.midDaysTo} days — {cancel.mid}% charge. {cancel.free}+ days — free.
+          </div>
+        </div>
+      </div>)}
+
+      {/* Deposit customizer */}
+      {policy.find(p=>p.id==="deposit"&&p.on)&&(<div style={{marginTop:0,background:"#f9fafb",borderRadius:8,padding:"10px 12px",border:"1px solid #e5e7eb"}}>
+        <div style={{fontSize:10,fontWeight:700,color:"#9ca3af",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:8}}>Deposit structure</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"60px 1fr",gap:8,alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <input type="number" min={0} max={100} value={p1} onChange={e=>updDep("p1",Math.min(100,Number(e.target.value)))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+              <span style={{fontSize:12,color:"#6b7280"}}>%</span>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:"#374151",fontWeight:600}}>On confirmation</div>
+              <input type="text" value={deposit.p1label} onChange={e=>updDep("p1label",e.target.value)} placeholder="e.g. non-refundable" style={{...I,marginTop:3,fontSize:11,padding:"4px 8px"}}/>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"60px 1fr",gap:8,alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <input type="number" min={0} max={100-p1} value={p2} onChange={e=>updDep("p2",Math.min(100-p1,Number(e.target.value)))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+              <span style={{fontSize:12,color:"#6b7280"}}>%</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <input type="number" min={1} max={52} value={deposit.p2weeks} onChange={e=>updDep("p2weeks",Number(e.target.value))} style={{...I,width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700}}/>
+              <span style={{fontSize:11,color:"#374151"}}>weeks before event</span>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"60px 1fr",gap:8,alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <div style={{width:50,textAlign:"center",padding:"4px",fontSize:13,fontWeight:700,color:"#9ca3af",background:"#f3f4f6",borderRadius:8,border:"1px solid #e5e7eb"}}>{p3}</div>
+              <span style={{fontSize:12,color:"#6b7280"}}>%</span>
+            </div>
+            <div style={{fontSize:11,color:"#6b7280"}}>Remaining — after event (auto-calculated)</div>
+          </div>
+          <div style={{fontSize:11,color:"#0369a1",background:"#e0f2fe",borderRadius:6,padding:"6px 10px"}}>
+            Preview: {p1}% on confirmation ({deposit.p1label}) · {p2}% due {deposit.p2weeks} weeks before · {p3}% after event
+          </div>
+        </div>
+      </div>)}
+    </div>)}
+    {activePolicies.map((p,i)=><div key={i} style={{display:"flex",gap:5,marginBottom:4,fontSize:11,color:"#4b5563",lineHeight:1.5}}><span style={{flexShrink:0}}>{p.icon}</span><span>{p.text}</span></div>)}
+  </div>);
+};
+const Mdl=({title,children,onClose,small})=><div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}><div onClick={e=>e.stopPropagation()} style={{background:"white",borderRadius:14,width:"100%",maxWidth:small?400:500,maxHeight:"82vh",overflow:"auto",padding:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontWeight:700,fontSize:15}}>{title}</div><button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#9ca3af"}}>✕</button></div>{children}</div></div>;
+const BS=(bg,border,color)=>({background:bg,border:`1px solid ${border}`,color,borderRadius:8,padding:"6px 10px",fontSize:12,cursor:"pointer",fontWeight:500,display:"flex",alignItems:"center"});
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
