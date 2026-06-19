@@ -149,7 +149,7 @@ const genId = () => `RVK-${new Date().getFullYear()}-${Math.random().toString(36
 const dFmt = ts => new Date(ts).toLocaleDateString("en-GB");
 
 // ── APP ───────────────────────────────────────────────────────
-export default function App(){
+function App(){
   const [menuId,      setMenuId]      = useState("pinna");
   const [guests,      setGuests]      = useState(20);
   const [evDate,      setEvDate]      = useState("");
