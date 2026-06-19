@@ -17,6 +17,7 @@ input,select,textarea{font-family:inherit;}
 <div id="root"></div>
 <script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
 <script type="text/babel" data-presets="react-classic">
+const {useState,useEffect,useRef,useCallback,useMemo,useReducer,useContext,useLayoutEffect} = React;
 
 // ── CONFIG ────────────────────────────────────────────────────
 const PARTNER_NAME   = "Reykjaböð";
