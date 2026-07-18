@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Veisluþjónusta Suðurlands — Reykjaböð Partner Portal</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;font-size:14px;color:#111;background:#f0f9ff;}
+input,select,textarea{font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var require=function(m){if(m==='react')return window.React;throw new Error('Cannot require: '+m);};
+(() => {
+  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+  }) : x)(function(x) {
+    if (typeof require !== "undefined") return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x + '" is not supported');
+  });
+
+  // ../../tmp/partner_with_render.tsx
+  var import_react = __require("react");
+  var PARTNER_NAME = "Reykjab\xF6\xF0";
+  var SUPPLIER_NAME = "Veislu\xFEj\xF3nusta Su\xF0urlands";
+  var SUPPLIER_PHONE = "+354 864-3237";
+  var SUPPLIER_EMAIL = "info@frokenselfoss.is";
+  var SUPPLIER_WEB = "frokenselfoss.is";
+  var COOP_DISC = 0.12;
+  var VAT = 0.11;
+  var EMAILJS = { serviceId: "service_ayhh3cg", templateId: "template_mj6clt8", publicKey: "5CfQAtA4uOD5I2SiW" };
+  var SHEET_API = "https://script.google.com/macros/s/AKfycbyfBNQdk239WRnbJQuQaneQTY5TL15SkN8SUzpNg6s1ghO5d2U53yvHCEtjlMwdpOW3/exec";
+  var MENUS = [
+    {
+      id: "pinna",
+      icon: "\u{1F962}",
+      name: "Pinnaveisla",
+      desc: "8 types of skewers \xB7 12 units per person \xB7 The signature pin party",
+      web: "https://www.frokenselfoss.is/en/pinnaveisla",
+      tiers: { 0: 7490, 30: 6990, 60: 5990, 100: 5490, 150: 4990, 200: 4490 },
+      min: 15,
+      hasVeg: true,
+      hasVegan: false,
+      allergens: ["gluten", "dairy", "eggs", "nuts"]
+    },
+    {
+      id: "bistro",
+      icon: "\u{1F37D}\uFE0F",
+      name: "B\xEDstr\xF3 sm\xE1r\xE9ttir",
+      desc: "8 types bistro-style \xB7 10 units per person \xB7 Great for drinks receptions",
+      web: "https://www.frokenselfoss.is/en/bistro",
+      tiers: { 0: 6490, 30: 5990, 60: 5190, 100: 4790, 150: 4390, 200: 3990 },
+      min: 15,
+      hasVeg: true,
+      hasVegan: false,
+      allergens: ["gluten", "dairy", "eggs"]
+    },
+    {
+      id: "snarl",
+      icon: "\u{1F961}",
+      name: "Snarl pinni",
+      desc: "4 types \xB7 6 units per person \xB7 Pre-dinner snacks or drinks reception",
+      web: "https://www.frokenselfoss.is/en/snarl",
+      tiers: { 0: 4190, 30: 3690, 60: 3190, 100: 2990, 150: 2690, 200: 2490 },
+      min: 15,
+      hasVeg: true,
+      hasVegan: false,
+      allergens: ["gluten", "dairy"]
+    },
+    {
+      id: "soup",
+      icon: "\u{1F372}",
+      name: "S\xFApuhla\xF0bor\xF0",
+      desc: "Simple soup buffet with bread and sides",
+      web: "https://www.frokenselfoss.is",
+      tiers: { 0: 3990, 30: 3490, 60: 2990, 100: 2690, 150: 2490, 200: 2290 },
+      min: 15,
+      hasVeg: true,
+      hasVegan: true,
+      allergens: ["gluten", "dairy"]
+    },
+    {
+      id: "steak",
+      icon: "\u{1F969}",
+      name: "Steikarhla\xF0bor\xF0",
+      desc: "Steak buffet with carved meat, roasted potatoes and fresh salads",
+      web: "https://www.frokenselfoss.is",
+      tiers: { 0: 6490, 30: 5990, 60: 5290, 100: 4790, 150: 4390, 200: 3990 },
+      min: 15,
+      hasVeg: false,
+      hasVegan: false,
+      allergens: ["gluten", "dairy", "eggs"]
+    },
+    {
+      id: "burger",
+      icon: "\u{1F354}",
+      name: "Burger Party",
+      desc: "Groov\xEDs food truck burgers with sides",
+      web: "https://www.frokenselfoss.is",
+      tiers: { 0: 4490, 30: 3990, 60: 3490, 100: 3190, 150: 2990, 200: 2790 },
+      min: 15,
+      hasVeg: true,
+      hasVegan: false,
+      allergens: ["gluten", "dairy", "eggs"]
+    }
+  ];
+  function getListPrice(menu, guests) {
+    const entries = Object.entries(menu.tiers).map(([k, v]) => ({ min: Number(k), price: v })).sort((a, b) => b.min - a.min);
+    return entries.find((t) => guests >= t.min).price;
+  }
+  function getCoopCost(menu, guests) {
+    const eff = Math.max(guests, 30);
+    const entries = Object.entries(menu.tiers).map(([k, v]) => ({ min: Number(k), price: v })).sort((a, b) => b.min - a.min);
+    return Math.round(entries.find((t) => eff >= t.min).price * (1 - COOP_DISC));
+  }
+  function getEaster(Y) {
+    const a = Y % 19, b = Math.floor(Y / 100), c = Y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), dy = (h + l - 7 * m + 114) % 31 + 1;
+    return new Date(Y, mo - 1, dy);
+  }
+  function getHolidaysNamed(year) {
+    const e = getEaster(year), add = (d, n) => {
+      const r = new Date(d);
+      r.setDate(r.getDate() + n);
+      return r;
+    }, s = (d) => d.toISOString().slice(0, 10);
+    const aug1 = new Date(year, 7, 1), commerce = new Date(year, 7, 1 + ((8 - aug1.getDay()) % 7 || 7)), apr19 = new Date(year, 3, 19), summer = new Date(year, 3, 19 + ((4 - apr19.getDay() + 7) % 7 || 7));
+    return { [`${year}-01-01`]: "\u{1F389} N\xFD\xE1rsdagur", [s(add(e, -3))]: "\u271D\uFE0F Sk\xEDrdagur", [s(add(e, -2))]: "\u271D\uFE0F F\xF6studagurinn langi", [s(e)]: "\u271D\uFE0F P\xE1skadagur", [s(add(e, 1))]: "\u271D\uFE0F Annar \xED p\xE1skum", [s(summer)]: "\u{1F338} Sumardagurinn fyrsti", [`${year}-05-01`]: "\u{1F477} Verkal\xFD\xF0sdagurinn", [s(add(e, 39))]: "\u271D\uFE0F Uppstigningardagur", [s(add(e, 49))]: "\u271D\uFE0F Hv\xEDtasunnudagur", [s(add(e, 50))]: "\u271D\uFE0F Annar \xED hv\xEDtasunnu", [`${year}-06-17`]: "\u{1F1EE}\u{1F1F8} \xDEj\xF3\xF0h\xE1t\xED\xF0ardagurinn", [s(commerce)]: "\u{1F6CD}\uFE0F Fr\xEDdagur verslunarmanna", [`${year}-12-24`]: "\u{1F384} A\xF0fangadagur", [`${year}-12-25`]: "\u{1F384} J\xF3ladagur", [`${year}-12-26`]: "\u{1F384} Annar \xED j\xF3lum", [`${year}-12-31`]: "\u{1F942} Gaml\xE1rsdagur" };
+  }
+  function checkHoliday(dateStr) {
+    if (!dateStr) return null;
+    const year = (/* @__PURE__ */ new Date(dateStr + "T12:00:00")).getFullYear();
+    return getHolidaysNamed(year)[dateStr] || null;
+  }
+  var FAQS = [
+    { q: "A guest has a food allergy \u2014 what do I do?", a: "Note all allergies clearly in the order notes before sending. For severe or anaphylactic allergies (nuts, shellfish), contact Fr\xF6ken Selfoss directly before confirming. We cannot guarantee a fully allergen-free environment but will adapt where possible." },
+    { q: "Can we accommodate vegetarians?", a: "Yes. Most menus include vegetarian options by default. Note the number of vegetarian guests in the order notes \u2014 no extra charge for standard vegetarian adaptation. The soup buffet is fully vegetarian-friendly." },
+    { q: "Can we accommodate vegans?", a: "Vegan adaptation is possible for the soup buffet. For other menus, contact Fr\xF6ken Selfoss directly if more than 20% of guests are vegan. Note vegan guests in the order regardless." },
+    { q: "What about gluten intolerance / coeliac?", a: "Some items can be adapted gluten-free. Note clearly in the order. For diagnosed coeliac disease, contact Fr\xF6ken Selfoss directly before confirming \u2014 this requires extra kitchen protocols." },
+    { q: "What is included in the price?", a: "Food service only. Fr\xF6ken Selfoss provides the food and appropriate serving equipment. Reykjadalur provides plates and cutlery. Bar, drinks and table service are Reykjadalur's responsibility." },
+    { q: "Can guests see the full menu before booking?", a: "Yes \u2014 direct them to frokenselfoss.is for full menu descriptions, photos and ingredient information." },
+    { q: "What is the minimum group size?", a: "Minimum 15 guests. Groups under 30 are priced at the 30\u201359 pax rate for your cost from us \u2014 this reflects batch production and is not an error." },
+    { q: "How far in advance must we order?", a: "Standard is 48 hours. But if it's short notice \u2014 give Fr\xF6ken Selfoss a call. We thrive on flexibility and will do our best to make it work. Don't assume it's impossible just because it's last minute." },
+    { q: "What if the guest count changes after we order?", a: "More guests: call Fr\xF6ken Selfoss immediately \u2014 we will adapt and figure it out. Fewer guests: if prep has not started, changes are possible. Once prep has started (within 48 hours of the event), the count is locked and the full ordered quantity is charged." },
+    { q: "Are children counted as guests?", a: "Children aged 12 and over are counted as full guests. Children under 12 should be noted separately. Contact Fr\xF6ken Selfoss for children's pricing." },
+    { q: "What happens on public holidays?", a: "Fr\xF6ken Selfoss production costs are higher on public holidays (\xD71.90 labour). The calculator flags this automatically. Whether you add a surcharge to your guests is entirely your decision \u2014 the flag is just so you can make an informed pricing call." },
+    { q: "Something is wrong with my order \u2014 who do I call?", a: `Call Fr\xF6ken Selfoss directly: ${SUPPLIER_PHONE}. For non-urgent questions email ${SUPPLIER_EMAIL}. Do not wait \u2014 production starts 48 hours before your event.` }
+  ];
+  var fmt = (n) => Math.round(Number(n)).toLocaleString("is-IS") + " kr";
+  var genId = () => `RVK-${(/* @__PURE__ */ new Date()).getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+  var dFmt = (ts) => new Date(ts).toLocaleDateString("en-GB");
+  function App() {
+    const [menuId, setMenuId] = (0, import_react.useState)("pinna");
+    const [guests, setGuests] = (0, import_react.useState)(25);
+    const [evDate, setEvDate] = (0, import_react.useState)("");
+    const [clientName, setClientName] = (0, import_react.useState)("");
+    const [clientEmail, setClientEmail] = (0, import_react.useState)("");
+    const [clientPhone, setClientPhone] = (0, import_react.useState)("");
+    const [contactName, setContactName] = (0, import_react.useState)("");
+    const [notes, setNotes] = (0, import_react.useState)("");
+    const [guestPrice, setGuestPrice] = (0, import_react.useState)(0);
+    const [qid] = (0, import_react.useState)(genId);
+    const [orders, setOrders] = (0, import_react.useState)([]);
+    const [modal, setModal] = (0, import_react.useState)(null);
+    const [status, setStatus] = (0, import_react.useState)(null);
+    const [printContent, setPrintContent] = (0, import_react.useState)(null);
+    const [openFaq, setOpenFaq] = (0, import_react.useState)(null);
+    const [showMenuInfo, setShowMenuInfo] = (0, import_react.useState)(false);
+    const printRef = (0, import_react.useRef)();
+    const menu = MENUS.find((m) => m.id === menuId);
+    const holiday = checkHoliday(evDate);
+    const listPrice = getListPrice(menu, guests);
+    const coopCost = getCoopCost(menu, guests);
+    const coopCostTotal = coopCost * guests;
+    const coopCostExVAT = Math.round(coopCostTotal / (1 + VAT));
+    const coopCostVATAmt = coopCostTotal - coopCostExVAT;
+    const guestTotal = guestPrice > 0 ? guestPrice * guests : 0;
+    const marginKr = guestPrice > 0 ? guestPrice - coopCost : 0;
+    const marginPct = guestPrice > 0 ? (marginKr / guestPrice * 100).toFixed(1) : 0;
+    const marginColor = Number(marginPct) >= 15 ? "#15803d" : Number(marginPct) >= 8 ? "#d97706" : "#dc2626";
+    const builtInMarginPct = ((listPrice - coopCost) / listPrice * 100).toFixed(1);
+    (0, import_react.useEffect)(() => {
+      setGuestPrice(listPrice);
+    }, [menuId, guests]);
+    (0, import_react.useEffect)(() => {
+      loadOrders();
+    }, []);
+    function loadOrders() {
+      let localO = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("ro:")) {
+            try {
+              localO.push(JSON.parse(localStorage.getItem(k)));
+            } catch {
+            }
+          }
+        }
+        setOrders(localO.sort((a, b) => b.ts - a.ts));
+      } catch {
+      }
+      fetch(`${SHEET_API}?action=listOrders`).then((r) => r.json()).then((res) => {
+        if (res && res.ok && Array.isArray(res.items)) {
+          const byId = {};
+          [...localO, ...res.items].forEach((o) => {
+            if (o && o.id) byId[o.id] = o;
+          });
+          setOrders(Object.values(byId).sort((a, b) => b.ts - a.ts));
+        }
+      }).catch(() => {
+      });
+    }
+    async function sendOrder() {
+      setStatus("sending");
+      const order = { id: qid, ts: Date.now(), menuName: menu.name, menuId, guests, evDate, clientName, clientEmail, clientPhone, contactName, notes, holiday, listPrice, coopCost, coopCostTotal, coopCostExVAT, coopCostVATAmt, guestPrice, guestTotal, marginKr, marginPct };
+      try {
+        localStorage.setItem(`ro:${qid}`, JSON.stringify(order));
+        try {
+          fetch(SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "saveOrder", order }) });
+        } catch (e) {
+          console.warn("Sheet save failed:", e);
+        }
+        try {
+          await fetch("https://api.emailjs.com/api/v1.0/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_id: EMAILJS.serviceId, template_id: EMAILJS.templateId, user_id: EMAILJS.publicKey, template_params: { order_id: qid, partner: PARTNER_NAME, contact: contactName || "\u2013", menu: menu.name, guests, event_date: evDate || "TBD", client: clientName || "\u2013", client_email: clientEmail || "\u2013", client_phone: clientPhone || "\u2013", coop_total: fmt(coopCostTotal), holiday: holiday || "No", notes: notes || "\u2013" } }) });
+        } catch (e) {
+          console.warn("EmailJS failed:", e);
+        }
+        loadOrders();
+        setStatus("sent");
+        setModal("confirm");
+      } catch {
+        setStatus("error");
+      }
+      setTimeout(() => setStatus(null), 4e3);
+    }
+    function buildOrderHTML(o) {
+      const m = MENUS.find((x) => x.id === o.menuId);
+      return `<html><head><style>body{font-family:Georgia,serif;color:#111;max-width:620px;margin:36px auto;padding:0 20px;font-size:13px}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:16px}.badge{background:#fef9c3;border:1px solid #ca8a04;color:#92400e;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700}.hbadge{background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;margin-top:4px;display:block}table{width:100%;border-collapse:collapse;margin:10px 0}td{padding:6px 0;border-bottom:1px solid #f3f4f6}.lbl{color:#6b7280;width:55%}.tot td{border-top:2px solid #111;border-bottom:none;font-size:16px;font-weight:700;padding-top:10px}.sect{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;margin:14px 0 6px}@media print{body{margin:16px}}</style></head><body>
+    <div class="hdr"><div><div style="font-size:20px;font-weight:700">${SUPPLIER_NAME}</div><div style="font-size:12px;color:#6b7280">Catering Order \xB7 ${PARTNER_NAME}</div><div style="font-size:11px;color:#aaa">Br\xFAartorg, Selfoss \xB7 ${SUPPLIER_PHONE} \xB7 ${SUPPLIER_WEB}</div></div>
+    <div style="text-align:right"><span class="badge">PARTNER ORDER</span>${o.holiday ? `<span class="hbadge">\u26A0\uFE0F PUBLIC HOLIDAY</span>` : ""}<div style="font-size:15px;font-weight:700;margin-top:6px">${o.id}</div><div style="font-size:11px;color:#aaa">${dFmt(o.ts)}</div></div></div>
+    <div class="sect">Event details</div>
+    <table><tr><td class="lbl">Event date</td><td><strong>${o.evDate || "TBD"}${o.holiday ? ` \u2014 \u26A0\uFE0F ${o.holiday}` : ""}</strong></td></tr><tr><td class="lbl">Menu</td><td><strong>${m ? m.name : o.menuName}</strong></td></tr><tr><td class="lbl">Guests</td><td><strong>${o.guests} pax</strong></td></tr></table>
+    <div class="sect">Guest / client</div>
+    <table><tr><td class="lbl">Name</td><td>${o.clientName || "\u2013"}</td></tr>${o.clientEmail ? `<tr><td class="lbl">Email</td><td>${o.clientEmail}</td></tr>` : ""} ${o.clientPhone ? `<tr><td class="lbl">Phone</td><td>${o.clientPhone}</td></tr>` : ""}</table>
+    <div class="sect">Order placed by</div><p style="margin:0 0 12px">${o.contactName || "\u2013"} \xB7 ${PARTNER_NAME}</p>
+    ${o.notes ? `<div class="sect">Notes / dietary requirements</div><p style="margin:0 0 12px;padding:8px 10px;background:#f9fafb;border-radius:6px">${o.notes}</p>` : ""}
+    <div class="sect">Invoice to ${PARTNER_NAME}</div>
+    <table><tr><td class="lbl">Price per person (incl. VAT)</td><td>${fmt(o.coopCost)}</td></tr><tr><td class="lbl">Subtotal ex. VAT</td><td>${fmt(o.coopCostExVAT)}</td></tr><tr><td class="lbl">VAT 11%</td><td>${fmt(o.coopCostVATAmt)}</td></tr><tr class="tot"><td>Total incl. VAT</td><td style="text-align:right">${fmt(o.coopCostTotal)}</td></tr></table>
+    <p style="font-size:11px;color:#9ca3af;margin-top:20px;border-top:1px solid #e5e7eb;padding-top:10px">Partner wholesale rate \u2014 12% discount applied on 30-pax tier minimum.<br>Payment: invoice within 7 days of event. Cancellation within 48h: full charge. 3\u20137 days: 50%. 7+ days: free.<br>Contact ${SUPPLIER_PHONE} for changes or clarifications.</p>
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
+    }
+    function openPrint(o) {
+      setPrintContent(buildOrderHTML(o));
+    }
+    function doPrint() {
+      const iframe = printRef.current && printRef.current.querySelector("iframe");
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }
+    }
+    function deleteOrder(id) {
+      try {
+        localStorage.removeItem(`ro:${id}`);
+        loadOrders();
+      } catch {
+      }
+    }
+    const canSend = guests >= 15 && evDate && (status === null || status === "error");
+    return /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "system-ui,sans-serif", minHeight: "100vh", background: "#f0f9ff", fontSize: 14, color: "#111" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#0c4a6e", color: "white", padding: "18px 20px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#7dd3fc", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 2 } }, "Partner Portal"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" } }, PARTNER_NAME), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#bae6fd", marginTop: 2 } }, "Catering orders from ", SUPPLIER_NAME)), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("history"), style: { background: "rgba(255,255,255,0.12)", color: "white", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontWeight: 600 } }, "\u{1F4CB} Order History", orders.length > 0 && /* @__PURE__ */ React.createElement("span", { style: { background: "#e11d48", borderRadius: 20, padding: "1px 6px", fontSize: 10, marginLeft: 4 } }, orders.length))))), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto", padding: "16px 16px 40px" } }, /* @__PURE__ */ React.createElement(Step, { n: "1", title: "Select menu" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 6 } }, MENUS.map((m) => {
+      const lp = getListPrice(m, guests), cc = getCoopCost(m, guests);
+      const sel = menuId === m.id;
+      return /* @__PURE__ */ React.createElement("div", { key: m.id, onClick: () => setMenuId(m.id), style: { display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", borderRadius: 10, border: `2px solid ${sel ? "#0284c7" : "#e5e7eb"}`, background: sel ? "#f0f9ff" : "white", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 22, marginTop: 1 } }, m.icon), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, m.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", marginTop: 1 } }, m.desc), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" } }, m.hasVeg && /* @__PURE__ */ React.createElement(Tag, { c: "#059669", bg: "#d1fae5" }, "\u{1F966} Veg option"), m.hasVegan && /* @__PURE__ */ React.createElement(Tag, { c: "#065f46", bg: "#a7f3d0" }, "\u{1F331} Vegan option"), !m.hasVeg && /* @__PURE__ */ React.createElement(Tag, { c: "#9ca3af", bg: "#f3f4f6" }, "\u26A0\uFE0F No veg \u2014 note in order"), /* @__PURE__ */ React.createElement("a", { href: m.web, target: "_blank", rel: "noreferrer", onClick: (e) => e.stopPropagation(), style: { fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#e0f2fe", color: "#0284c7", fontWeight: 600, textDecoration: "none" } }, "\u{1F517} Full menu"))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "guest price"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#374151", fontSize: 14 } }, fmt(lp)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 3 } }, "your cost"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#0284c7", fontSize: 13 } }, fmt(cc))));
+    }))), /* @__PURE__ */ React.createElement(Step, { n: "2", title: "Guest count" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("input", { type: "range", min: 15, max: 110, value: guests, onChange: (e) => setGuests(Number(e.target.value)), style: { width: "100%", accentColor: "#0284c7" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginTop: 2 } }, /* @__PURE__ */ React.createElement("span", null, "15"), /* @__PURE__ */ React.createElement("span", null, "40"), /* @__PURE__ */ React.createElement("span", null, "70"), /* @__PURE__ */ React.createElement("span", null, "110"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } }, /* @__PURE__ */ React.createElement(SB, { onClick: () => setGuests(Math.max(15, guests - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", min: 15, max: 200, value: guests, onChange: (e) => setGuests(Math.max(15, Math.min(200, Number(e.target.value)))), style: { width: 60, textAlign: "center", border: "1px solid #e5e7eb", borderRadius: 8, padding: 4, fontSize: 20, fontWeight: 700, outline: "none" } }), /* @__PURE__ */ React.createElement(SB, { onClick: () => setGuests(Math.min(200, guests + 1)) }, "+"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 } }, [15, 20, 25, 30, 40, 50, 70, 100].map((n) => /* @__PURE__ */ React.createElement("button", { key: n, onClick: () => setGuests(n), style: { padding: "4px 12px", borderRadius: 20, border: `1px solid ${guests === n ? "#0284c7" : "#e5e7eb"}`, background: guests === n ? "#0284c7" : "white", color: guests === n ? "white" : "#6b7280", fontSize: 12, fontWeight: 600, cursor: "pointer" } }, n))), /* @__PURE__ */ React.createElement("div", { style: { background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 } }, "Standard guest price"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "#374151" } }, fmt(listPrice)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, "What guests pay \xB7 ", guests < 30 ? "1\u201329 pax tier" : guests < 60 ? "30\u201359 pax tier" : guests < 100 ? "60\u201399 pax tier" : "100+ pax tier")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#0369a1", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 3 } }, "Your cost from us"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: "#0284c7" } }, fmt(coopCost)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, guests < 30 ? "30\u201359 pax tier (batch rate)" : "Same tier as guests", " \xB7 12% discount"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, borderTop: "1px solid #bae6fd", paddingTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#0369a1" } }, "Built-in margin at standard price"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: Number(builtInMarginPct) >= 15 ? "#15803d" : "#0369a1" } }, builtInMarginPct, "%")))), /* @__PURE__ */ React.createElement(Step, { n: "3", title: "Event details" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Event date", span2: true }, /* @__PURE__ */ React.createElement("input", { type: "date", value: evDate, onChange: (e) => setEvDate(e.target.value), style: I }))), holiday && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, background: "#fef2f2", border: "2px solid #fca5a5", borderRadius: 10, padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#dc2626", marginBottom: 4 } }, "\u26A0\uFE0F Public holiday \u2014 ", holiday), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#7f1d1d", marginBottom: 8 } }, "FYI: Fr\xF6ken Selfoss production costs are higher on public holidays (\xD71.90 labour). Whether you add a guest surcharge is entirely your call \u2014 quick-fill options below if useful."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, [15, 20].map((p) => {
+      const sug = Math.ceil(coopCost / (1 - p / 100) / 10) * 10;
+      return /* @__PURE__ */ React.createElement("button", { key: p, onClick: () => setGuestPrice(sug), style: { flex: 1, padding: "8px", border: "1px solid #fca5a5", borderRadius: 8, background: "white", cursor: "pointer", fontWeight: 600, fontSize: 12, color: "#dc2626" } }, "Set to +", p, "% margin", /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", fontWeight: 400 } }, fmt(sug), "/pax"));
+    }))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Your name (staff placing order)" }, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Your name", value: contactName, onChange: (e) => setContactName(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Guest / group name" }, /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Guest or booking name", value: clientName, onChange: (e) => setClientName(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Guest email" }, /* @__PURE__ */ React.createElement("input", { type: "email", placeholder: "guest@email.com", value: clientEmail, onChange: (e) => setClientEmail(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Guest phone" }, /* @__PURE__ */ React.createElement("input", { type: "tel", placeholder: "+354 xxx xxxx", value: clientPhone, onChange: (e) => setClientPhone(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Notes / dietary requirements / allergies", span2: true }, /* @__PURE__ */ React.createElement("textarea", { rows: 3, placeholder: "List ALL allergies, dietary requirements (vegetarian, vegan, gluten-free), number of children, timing or other special needs. Be specific.", value: notes, onChange: (e) => setNotes(e.target.value), style: { ...I, resize: "vertical" } }))), !evDate && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, fontSize: 11, color: "#dc2626" } }, "\u26A0\uFE0F Event date is required to send the order.")), /* @__PURE__ */ React.createElement(Step, { n: "4", title: "Your guest price" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#374151", marginBottom: 12, padding: "8px 12px", background: "#f9fafb", borderRadius: 8, lineHeight: 1.6 } }, "The standard list price (", /* @__PURE__ */ React.createElement("strong", null, fmt(listPrice), "/pax"), ") is pre-filled \u2014 this is what any client would pay at ", guests, " guests. You can charge this or more. Your margin is the difference between what you charge guests and what you pay us (", fmt(coopCost), "/pax)."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 } }, /* @__PURE__ */ React.createElement(F, { label: "Your guest price per person (incl. VAT)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: guestPrice, onChange: (e) => setGuestPrice(Math.max(0, Number(e.target.value))), style: { ...I, fontWeight: 700, fontSize: 16 } })), /* @__PURE__ */ React.createElement(F, { label: "Quick set" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setGuestPrice(listPrice), style: { flex: 1, padding: "7px 0", border: `2px solid ${guestPrice === listPrice ? "#0284c7" : "#e5e7eb"}`, borderRadius: 8, background: guestPrice === listPrice ? "#e0f2fe" : "white", fontSize: 11, fontWeight: 700, cursor: "pointer", color: guestPrice === listPrice ? "#0284c7" : "#374151" } }, "List price", /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#6b7280", fontWeight: 400 } }, fmt(listPrice))), [15, 20, 25].map((p) => {
+      const sug = Math.ceil(coopCost / (1 - p / 100) / 10) * 10;
+      return /* @__PURE__ */ React.createElement("button", { key: p, onClick: () => setGuestPrice(sug), style: { flex: 1, padding: "7px 0", border: "1px solid #e5e7eb", borderRadius: 8, background: "white", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#374151" } }, "+", p, "%", /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, fmt(sug)));
+    })))), guestPrice > 0 && guestPrice > coopCost && /* @__PURE__ */ React.createElement("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, textAlign: "center", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginBottom: 3 } }, "Your cost/pax"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#0284c7" } }, fmt(coopCost)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "from us")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginBottom: 3 } }, "Your guest price"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, fmt(guestPrice)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "what guests pay")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginBottom: 3 } }, "Your margin"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 20, color: marginColor } }, marginPct, "%"))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px solid #e5e7eb", paddingTop: 10, display: "flex", flexDirection: "column", gap: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, "You pay Fr\xF6ken Selfoss (incl. VAT)"), /* @__PURE__ */ React.createElement("strong", null, fmt(coopCostTotal))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, "You charge guests (incl. VAT)"), /* @__PURE__ */ React.createElement("strong", null, fmt(guestTotal))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 700, color: marginColor, borderTop: "1px solid #e5e7eb", paddingTop: 8, marginTop: 2 } }, /* @__PURE__ */ React.createElement("span", null, "Your profit (", guests, " guests)"), /* @__PURE__ */ React.createElement("span", null, "+", fmt(guestTotal - coopCostTotal))))), guestPrice > 0 && guestPrice <= coopCost && /* @__PURE__ */ React.createElement("div", { style: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#dc2626", fontWeight: 600 } }, "\u26A0\uFE0F Guest price is below your cost. Increase above ", fmt(coopCost), "/pax.")), /* @__PURE__ */ React.createElement("div", { style: { background: "#0c4a6e", borderRadius: 12, padding: "16px 18px", color: "white", marginTop: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, marginBottom: 10, color: "#bae6fd" } }, "Order Summary"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginBottom: 3, display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#bae6fd" } }, menu.icon, " ", menu.name, " \xB7 ", guests, " guests"), /* @__PURE__ */ React.createElement("span", null, evDate || "Date TBD")), holiday && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#fca5a5", marginBottom: 4 } }, "\u26A0\uFE0F ", holiday), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginBottom: guestPrice > coopCost ? 4 : 12, display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#bae6fd" } }, "You pay Fr\xF6ken Selfoss"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700 } }, fmt(coopCostTotal))), guestPrice > coopCost && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginBottom: 12, display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#bae6fd" } }, "Your profit"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, color: "#86efac" } }, "+", fmt(guestTotal - coopCostTotal))), /* @__PURE__ */ React.createElement("button", { onClick: sendOrder, disabled: !canSend, style: { width: "100%", padding: "14px", borderRadius: 10, border: "none", cursor: canSend ? "pointer" : "not-allowed", background: canSend ? "#e11d48" : "rgba(255,255,255,0.15)", color: "white", fontWeight: 700, fontSize: 15, opacity: canSend ? 1 : 0.6 } }, status === "sending" ? "Sending\u2026" : status === "sent" ? "\u2713 Sent!" : status === "error" ? "Saved (email failed)" : "\u{1F4E8} Send Order to Fr\xF6ken Selfoss"), !evDate && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#fca5a5", textAlign: "center", marginTop: 6 } }, "Add event date to send")), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "14px", marginTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" } }, "Price reference \u2014 ", menu.name), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto" } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f9fafb" } }, /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 8px", textAlign: "left", color: "#6b7280", fontWeight: 600, fontSize: 11 } }, "Guests"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 8px", textAlign: "right", color: "#374151", fontWeight: 600, fontSize: 11 } }, "Standard", /* @__PURE__ */ React.createElement("br", null), "guest price"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 8px", textAlign: "right", color: "#0284c7", fontWeight: 600, fontSize: 11 } }, "Your cost", /* @__PURE__ */ React.createElement("br", null), "from us"), /* @__PURE__ */ React.createElement("th", { style: { padding: "6px 8px", textAlign: "right", color: "#059669", fontWeight: 600, fontSize: 11 } }, "Margin at", /* @__PURE__ */ React.createElement("br", null), "list price"))), /* @__PURE__ */ React.createElement("tbody", null, [["15\u201329", 15], ["30\u201359", 30], ["60\u201399", 60], ["100\u2013149", 100], ["150\u2013199", 150], ["200+", 200]].map(([label, n]) => {
+      const lp = getListPrice(menu, n), cc = getCoopCost(menu, n);
+      const m = ((lp - cc) / lp * 100).toFixed(0);
+      const active = guests >= n && (n === 200 || guests < ([15, 30, 60, 100, 150, 200][[15, 30, 60, 100, 150, 200].indexOf(n) + 1] || 999));
+      return /* @__PURE__ */ React.createElement("tr", { key: n, style: { background: active ? "#f0f9ff" : "white", fontWeight: active ? 700 : 400 } }, /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 8px", borderBottom: "1px solid #f3f4f6", color: active ? "#0369a1" : "#374151" } }, label, " pax", active ? " \u25C0" : ""), /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 8px", borderBottom: "1px solid #f3f4f6", textAlign: "right" } }, fmt(lp)), /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 8px", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: "#0284c7" } }, fmt(cc)), /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 8px", borderBottom: "1px solid #f3f4f6", textAlign: "right", color: Number(m) >= 15 ? "#15803d" : "#059669" } }, m, "%"));
+    })))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 8 } }, "All prices incl. 11% VAT \xB7 Your cost = 30-pax tier minimum \u221212% \xB7 Highlighted row = current selection")), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", marginTop: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowMenuInfo(!showMenuInfo), style: { width: "100%", padding: "12px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F37D}\uFE0F Menu Information & Website Links"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 16, color: "#9ca3af" } }, showMenuInfo ? "\u25B2" : "\u25BC")), showMenuInfo && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 14px", borderTop: "1px solid #f3f4f6" } }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#6b7280", margin: "10px 0" } }, "For full descriptions, photos and ingredient lists, direct guests to our website."), MENUS.map((m) => /* @__PURE__ */ React.createElement("div", { key: m.id, style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "8px 0", borderBottom: "1px solid #f9fafb" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13 } }, m.icon, " ", m.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", marginTop: 1 } }, m.desc), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" } }, m.hasVeg && /* @__PURE__ */ React.createElement(Tag, { c: "#059669", bg: "#d1fae5" }, "\u{1F966} Veg"), m.hasVegan && /* @__PURE__ */ React.createElement(Tag, { c: "#065f46", bg: "#a7f3d0" }, "\u{1F331} Vegan"), m.allergens.map((a) => /* @__PURE__ */ React.createElement(Tag, { key: a, c: "#9ca3af", bg: "#f3f4f6" }, a)))), /* @__PURE__ */ React.createElement("a", { href: m.web, target: "_blank", rel: "noreferrer", style: { fontSize: 11, padding: "4px 10px", background: "#e0f2fe", color: "#0284c7", borderRadius: 7, textDecoration: "none", fontWeight: 600, flexShrink: 0, marginLeft: 10 } }, "View \u2192"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, padding: "8px 10px", background: "#fef9c3", borderRadius: 8, fontSize: 11, color: "#92400e" } }, "\u26A0\uFE0F All menus may contain allergen traces from shared kitchen equipment. For severe allergies, always contact Fr\xF6ken Selfoss directly."))), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", marginTop: 10, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", fontWeight: 700, fontSize: 13, borderBottom: "1px solid #f3f4f6" } }, "\u2753 FAQ \u2014 Common guest questions"), FAQS.map((faq, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { borderBottom: i < FAQS.length - 1 ? "1px solid #f9fafb" : "none" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setOpenFaq(openFaq === i ? null : i), style: { width: "100%", padding: "11px 14px", background: "none", border: "none", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", textAlign: "left", fontSize: 13, fontWeight: 600, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", null, faq.q), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 14, color: "#9ca3af", marginLeft: 10, flexShrink: 0 } }, openFaq === i ? "\u25B2" : "\u25BC")), openFaq === i && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 14px 12px", fontSize: 12, color: "#374151", lineHeight: 1.7, background: "#f9fafb" } }, faq.a)))), /* @__PURE__ */ React.createElement("div", { style: { background: "#0c4a6e", borderRadius: 10, padding: "14px 16px", marginTop: 10, color: "white" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginBottom: 8, color: "#bae6fd" } }, "\u{1F4DE} Contact Fr\xF6ken Selfoss"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#7dd3fc", fontSize: 10, fontWeight: 700, marginBottom: 2 } }, "PHONE"), /* @__PURE__ */ React.createElement("div", null, SUPPLIER_PHONE)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#7dd3fc", fontSize: 10, fontWeight: 700, marginBottom: 2 } }, "EMAIL"), /* @__PURE__ */ React.createElement("div", null, SUPPLIER_EMAIL)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#7dd3fc", fontSize: 10, fontWeight: 700, marginBottom: 2 } }, "WEBSITE"), /* @__PURE__ */ React.createElement("div", null, SUPPLIER_WEB)), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { color: "#7dd3fc", fontSize: 10, fontWeight: 700, marginBottom: 2 } }, "ADDRESS"), /* @__PURE__ */ React.createElement("div", null, "Br\xFAartorg, Selfoss"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, fontSize: 11, color: "#7dd3fc", lineHeight: 1.7 } }, "Min. 48h notice \xB7 Short notice? Call us \u2014 we are flexible", /* @__PURE__ */ React.createElement("br", null), "Changes within 48h of event: count is locked once prep starts"))), modal === "history" && /* @__PURE__ */ React.createElement(Mdl, { title: "\u{1F4CB} Order History", onClose: () => setModal(null) }, orders.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { color: "#9ca3af", fontSize: 13 } }, "No orders yet.") : orders.map((o) => /* @__PURE__ */ React.createElement("div", { key: o.id, style: { padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 9, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13 } }, o.id, o.holiday && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, background: "#fee2e2", color: "#dc2626", padding: "1px 6px", borderRadius: 4, marginLeft: 6 } }, "Holiday")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, o.menuName, " \xB7 ", o.guests, " guests \xB7 ", o.evDate || "No date"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, o.clientName || "No client", " \xB7 ", dFmt(o.ts))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#0284c7", fontSize: 13 } }, fmt(o.coopCostTotal)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 4 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setModal(null);
+      openPrint(o);
+    }, style: { fontSize: 11, padding: "3px 8px", border: "1px solid #e5e7eb", borderRadius: 6, cursor: "pointer", background: "white" } }, "\u{1F5A8}\uFE0F Print"), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteOrder(o.id), style: { fontSize: 11, padding: "3px 8px", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer", background: "white", color: "#ef4444" } }, "\u2715"))))))), modal === "confirm" && /* @__PURE__ */ React.createElement(Mdl, { title: "\u2705 Order Sent!", onClose: () => setModal(null), small: true }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "10px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\u{1F4E8}"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 15, fontWeight: 700, marginBottom: 6 } }, "Order sent to ", SUPPLIER_NAME), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6b7280", marginBottom: 14 } }, menu.name, " \xB7 ", guests, " guests \xB7 ", evDate, /* @__PURE__ */ React.createElement("br", null), "You pay: ", /* @__PURE__ */ React.createElement("strong", null, fmt(coopCostTotal)), " (incl. VAT)", holiday && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("span", { style: { color: "#dc2626", fontSize: 12 } }, "\u26A0\uFE0F ", holiday))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setModal(null);
+      openPrint(orders[0]);
+    }, style: { flex: 1, padding: "10px", background: "#0284c7", color: "white", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 } }, "\u{1F5A8}\uFE0F Print order"), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal(null), style: { flex: 1, padding: "10px", border: "1px solid #e5e7eb", borderRadius: 8, cursor: "pointer", background: "white", fontSize: 13 } }, "Close")))), printContent && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#0c4a6e", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "white" } }, "\u{1F5A8}\uFE0F Order Confirmation"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: doPrint, style: { background: "#e11d48", color: "white", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 700, cursor: "pointer" } }, "Print / Save PDF"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPrintContent(null), style: { background: "rgba(255,255,255,0.15)", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", cursor: "pointer" } }, "\u2715"))), /* @__PURE__ */ React.createElement("div", { ref: printRef, style: { flex: 1, overflow: "auto", background: "#e5e7eb", padding: 20 } }, /* @__PURE__ */ React.createElement("iframe", { srcDoc: printContent, style: { width: "100%", maxWidth: 680, minHeight: 700, margin: "0 auto", display: "block", border: "none", borderRadius: 4, boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }, title: "Order" }))));
+  }
+  var I = { width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "7px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit" };
+  var Step = ({ n, title, children }) => /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 12, border: "1px solid #e5e7eb", padding: "14px 16px", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 26, height: 26, borderRadius: "50%", background: "#0c4a6e", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 } }, n), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, title)), children);
+  var F = ({ label, children, span2 }) => /* @__PURE__ */ React.createElement("div", { style: span2 ? { gridColumn: "1/-1" } : {} }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#6b7280", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" } }, label), children);
+  var SB = ({ onClick, children }) => /* @__PURE__ */ React.createElement("button", { onClick, style: { width: 30, height: 30, borderRadius: 8, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: 16, fontWeight: 700, flexShrink: 0 } }, children);
+  var Tag = ({ c, bg, children }) => /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, padding: "2px 7px", borderRadius: 20, background: bg, color: c, fontWeight: 600 } }, children);
+  var Mdl = ({ title, children, onClose, small }) => /* @__PURE__ */ React.createElement("div", { onClick: onClose, style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { background: "white", borderRadius: 14, width: "100%", maxWidth: small ? 380 : 480, maxHeight: "85vh", overflow: "auto", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" } }, "\u2715")), children));
+  var rootEl = document.getElementById("root");
+  if (rootEl) ReactDOM.createRoot(rootEl).render(React.createElement(App));
+})();
+</script></body></html>
