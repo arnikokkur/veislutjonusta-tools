@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Veisluþjónusta Suðurlands — Catering Quote Calculator</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:system-ui,sans-serif;font-size:14px;color:#111;background:#f9fafb;}
+input,select,textarea{font-family:inherit;}
+@media(max-width:680px){.g2c{grid-template-columns:1fr!important}.mg{grid-template-columns:1fr!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+var require=function(m){if(m==='react')return window.React;throw new Error('Cannot require: '+m);};
+(() => {
+  var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+    get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+  }) : x)(function(x) {
+    if (typeof require !== "undefined") return require.apply(this, arguments);
+    throw Error('Dynamic require of "' + x + '" is not supported');
+  });
+
+  // ../../tmp/catering_with_render.tsx
+  var import_react = __require("react");
+  var genId = () => `FS-${(/* @__PURE__ */ new Date()).getFullYear()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+  var fmt = (n) => Math.round(Number(n)).toLocaleString("is-IS") + " kr";
+  var pct = (n) => (Number(n) * 100).toFixed(1) + "%";
+  var dStr = (ts) => new Date(ts).toLocaleDateString("en-GB");
+  var round5 = (n) => Math.round(n / 0.5) * 0.5;
+  var MENUS = [
+    { id: "bistro", cat: "Finger Food", name: "B\xEDstr\xF3 sm\xE1r\xE9ttir", desc: "8 types \xB7 10 units/pax", price: 5990, min: 10 },
+    { id: "pinna", cat: "Finger Food", name: "Pinnaveisla", desc: "8 types \xB7 12 units/pax", price: 6990, min: 10 },
+    { id: "snarl", cat: "Finger Food", name: "Snarl pinni", desc: "4 types \xB7 6 units/pax", price: 3690, min: 10 },
+    { id: "snitta", cat: "Finger Food", name: "Snittuveisla", desc: "6 types \xB7 10 units/pax", price: 4490, min: 25 },
+    { id: "coffee", cat: "Meetings", name: "Kaffihla\xF0bor\xF0", desc: "Coffee table", price: 3200, min: 10 },
+    { id: "meeting", cat: "Meetings", name: "Fundapakki (Full Day)", desc: "Full day catering", price: 6500, min: 10 },
+    { id: "arshatid", cat: "Parties", name: "\xC1rsh\xE1t\xED\xF0 Pakki", desc: "3 courses, served", price: 8990, min: 20 },
+    { id: "wedding", cat: "Weddings", name: "Br\xFA\xF0kaup Pakki", desc: "Full service wedding", price: 11990, min: 20 },
+    { id: "ferming", cat: "Confirmations", name: "Fermingarveisla", desc: "Soup buffet & desserts", price: 5490, min: 15 }
+  ];
+  var TIERS = [{ min: 100, rate: 0.12, label: "100+" }, { min: 50, rate: 0.08, label: "50\u201399" }, { min: 25, rate: 0.05, label: "25\u201349" }, { min: 0, rate: 0, label: "<25" }];
+  var SERVICES = [
+    { id: "pickup", icon: "\u{1F961}", name: "Pickup", delivery: 0, staff: false, bar: false, venue: false },
+    { id: "delivery", icon: "\u{1F697}", name: "Delivery", delivery: 25e3, staff: false, bar: false, venue: false },
+    { id: "full", icon: "\u{1F37D}\uFE0F", name: "Full Service", delivery: 0, staff: true, bar: false, venue: false },
+    { id: "full_bar", icon: "\u{1F377}", name: "Full Service + Bar", delivery: 0, staff: true, bar: true, venue: false },
+    { id: "full_venue", icon: "\u{1F3DB}\uFE0F", name: "Full Package", delivery: 0, staff: true, bar: true, venue: true }
+  ];
+  var POLICY = [
+    { icon: "\u23F0", text: "48h min. notice for \u226430 guests. Larger events by arrangement." },
+    { icon: "\u{1F4B3}", text: "50% deposit to confirm. Balance invoiced within 7 days of event." },
+    { icon: "\u274C", text: "Cancel within 48h: full charge. 3\u20137 days: 50%. 7+ days: free." },
+    { icon: "\u{1F697}", text: "Free delivery \u226430min from Selfoss with all Full Service bookings." },
+    { icon: "\u{1F381}", text: "Full Service: 15% of food & drink spend credited toward venue rental." },
+    { icon: "\u{1F91D}", text: "Venue co-op partners: 12% wholesale rate. Set own margin on top." },
+    { icon: "\u{1F4CB}", text: "Quotes valid 14 days. Prices include VAT (food 11%, bar 24%)." }
+  ];
+  var EVENT_TYPES = ["Birthday", "Wedding", "Confirmation", "Graduation", "Corporate", "Annual Party", "Meeting", "Wake", "Private Dinner", "\xDEorrabl\xF3t", "Other"];
+  var BAR_PP = 4500;
+  var VENUE_BASE = 15e4;
+  var CREDIT_RATE = 0.15;
+  var VAT_FOOD = 0.11;
+  var VAT_BAR = 0.24;
+  var COOP_DISC = 0.12;
+  var KM_TAX = 6.95;
+  var SALARY_COSTS = 1.2;
+  var EMAILJS = { serviceId: "service_ayhh3cg", templateId: "template_mj6clt8", publicKey: "5CfQAtA4uOD5I2SiW" };
+  var SHEET_API = "https://script.google.com/macros/s/AKfycbyfBNQdk239WRnbJQuQaneQTY5TL15SkN8SUzpNg6s1ghO5d2U53yvHCEtjlMwdpOW3/exec";
+  var PRESETS = [
+    {
+      id: "cave",
+      icon: "\u{1F56F}\uFE0F",
+      name: "Cave Event",
+      desc: "Premium private chef, remote location",
+      cfg: { eventName: "Cave event > Premium setup", guests: 5, ingredientPP: 5e3, prepHours: 8, prepStaff: 1, locationHours: 6, locationStaff: 2, travelHours: 3, travelStaff: 2, vehicles: 1, kmOneWay: 80, deliveryZone: "outside", planningHours: 5, planningRate: 4500, targetMarginPct: 30, overtimeMult: 1.45, autoOvertime: false, transportVATMode: "separate24", contingencyPct: 7 },
+      equipment: [
+        { id: "plates", cat: "Tableware", name: "Diskar 23cm", cost: 150, on: true, qty: 10 },
+        { id: "cutlery", cat: "Tableware", name: "Cutlery set", cost: 100, on: true, qty: 10 },
+        { id: "coffee", cat: "Tableware", name: "Coffee cups & saucers", cost: 100, on: true, qty: 5 },
+        { id: "serviettes", cat: "Tableware", name: "Serviettes", cost: 500, on: true, qty: 5 },
+        { id: "wine_glass", cat: "Tableware", name: "Glassware \u2014 Wine", cost: 150, on: true, qty: 5 },
+        { id: "water_glass", cat: "Tableware", name: "Glassware \u2014 Water glass", cost: 150, on: true, qty: 5 },
+        { id: "gn", cat: "Hot Service", name: "GN containers (set)", cost: 250, on: true, qty: 5 },
+        { id: "travel_grill", cat: "Hot Service", name: "Small travel grill", cost: 5e3, on: true, qty: 1 },
+        { id: "gas_heater", cat: "Hot Service", name: "Gas heater", cost: 8e3, on: true, qty: 1 },
+        { id: "carving", cat: "Buffet", name: "Carving board (100cm)", cost: 450, on: true, qty: 1 },
+        { id: "buf_table", cat: "Buffet", name: "Buffet tables", cost: 1500, on: true, qty: 1 },
+        { id: "utensils", cat: "Buffet", name: "Serving utensils set", cost: 200, on: true, qty: 7 },
+        { id: "decor", cat: "Buffet", name: "D\xE9cor package", cost: 5e4, on: true, qty: 1 },
+        { id: "viking", cat: "Buffet", name: "Viking boat", cost: 2500, on: true, qty: 1 },
+        { id: "chairs", cat: "Venue Setup", name: "Chairs", cost: 1e3, on: true, qty: 6 },
+        { id: "chair_covers", cat: "Venue Setup", name: "Chair covers", cost: 1e3, on: true, qty: 6 },
+        { id: "guest_tables", cat: "Venue Setup", name: "Guest tables", cost: 1500, on: true, qty: 2 },
+        { id: "tablecloths", cat: "Venue Setup", name: "Tablecloths", cost: 3e3, on: true, qty: 3 },
+        { id: "candles", cat: "Venue Setup", name: "Candles", cost: 500, on: true, qty: 3 },
+        { id: "candle_hold", cat: "Venue Setup", name: "Candle holders", cost: 2e3, on: true, qty: 3 }
+      ]
+    },
+    {
+      id: "delivery",
+      icon: "\u{1F371}",
+      name: "Quick Delivery",
+      desc: "Lunch/meal delivery to office or home",
+      cfg: { eventName: "Meal Delivery", guests: 20, ingredientPP: 1800, prepHours: 2, prepStaff: 1, locationHours: 0.5, locationStaff: 1, travelHours: 0, travelStaff: 1, vehicles: 1, kmOneWay: 5, deliveryZone: "selfoss", planningHours: 1, targetMarginPct: 28, transportVATMode: "bundle11", autoOvertime: false }
+    },
+    {
+      id: "corporate",
+      icon: "\u{1F3E2}",
+      name: "Corporate",
+      desc: "Meeting, conference or office catering",
+      cfg: { eventName: "Corporate Event", guests: 30, ingredientPP: 2200, prepHours: 4, prepStaff: 2, locationHours: 4, locationStaff: 2, travelHours: 0, travelStaff: 1, vehicles: 1, deliveryZone: "selfoss", planningHours: 2, targetMarginPct: 30, transportVATMode: "separate24" }
+    },
+    {
+      id: "birthday",
+      icon: "\u{1F382}",
+      name: "Birthday",
+      desc: "Private birthday or family party",
+      cfg: { eventName: "Birthday Party", guests: 50, ingredientPP: 2e3, prepHours: 8, prepStaff: 2, locationHours: 6, locationStaff: 2, travelHours: 0, travelStaff: 2, vehicles: 1, planningHours: 3, targetMarginPct: 28, transportVATMode: "bundle11" }
+    },
+    {
+      id: "wedding",
+      icon: "\u{1F48D}",
+      name: "Wedding",
+      desc: "Full service wedding catering",
+      cfg: { eventName: "Wedding", guests: 100, ingredientPP: 2800, prepHours: 16, prepStaff: 3, locationHours: 10, locationStaff: 4, travelHours: 0, travelStaff: 4, vehicles: 1, planningHours: 8, targetMarginPct: 28, transportVATMode: "bundle11" }
+    },
+    {
+      id: "ferming",
+      icon: "\u{1F393}",
+      name: "Ferming",
+      desc: "Confirmation party",
+      cfg: { eventName: "Fermingarveisla", guests: 60, ingredientPP: 2e3, prepHours: 8, prepStaff: 2, locationHours: 5, locationStaff: 2, travelHours: 0, travelStaff: 2, vehicles: 1, planningHours: 3, targetMarginPct: 25, transportVATMode: "bundle11" }
+    },
+    {
+      id: "annual",
+      icon: "\u{1F38A}",
+      name: "\xC1rsh\xE1t\xED\xF0",
+      desc: "Annual company party",
+      cfg: { eventName: "\xC1rsh\xE1t\xED\xF0arveisla", guests: 100, ingredientPP: 2400, prepHours: 12, prepStaff: 3, locationHours: 8, locationStaff: 3, travelHours: 0, travelStaff: 3, vehicles: 1, planningHours: 5, targetMarginPct: 28, transportVATMode: "separate24" }
+    },
+    {
+      id: "thorrablot",
+      icon: "\u2744\uFE0F",
+      name: "\xDEorrabl\xF3t",
+      desc: "Traditional winter feast",
+      cfg: { eventName: "\xDEorrabl\xF3t", guests: 150, ingredientPP: 1800, prepHours: 10, prepStaff: 3, locationHours: 8, locationStaff: 3, travelHours: 0, travelStaff: 3, vehicles: 1, planningHours: 5, targetMarginPct: 25, transportVATMode: "bundle11" }
+    },
+    {
+      id: "large",
+      icon: "\u{1F3DB}\uFE0F",
+      name: "Large Event",
+      desc: "250+ guests, full production",
+      cfg: { eventName: "St\xF3rveisla", guests: 300, ingredientPP: 2200, prepHours: 18, prepStaff: 4, locationHours: 12, locationStaff: 5, travelHours: 0, travelStaff: 5, vehicles: 2, planningHours: 10, targetMarginPct: 25, transportVATMode: "separate24" }
+    }
+  ];
+  var EQUIP_CATS = ["Tableware", "Hot Service", "Buffet", "Venue Setup", "Transport", "Washing", "Third-Party Rentals"];
+  var EQUIP_DEF = [
+    // Tableware
+    { id: "plates", cat: "Tableware", name: "Diskar 23cm", cost: 150, on: false },
+    { id: "bowl_lg", cat: "Tableware", name: "Sk\xE1lar 25cm", cost: 100, on: false },
+    { id: "bowl_md", cat: "Tableware", name: "Sk\xE1lar 24cm", cost: 80, on: false },
+    { id: "bowl_sm", cat: "Tableware", name: "Sk\xE1lar 22cm", cost: 60, on: false },
+    { id: "cutlery", cat: "Tableware", name: "Cutlery set", cost: 100, on: false },
+    { id: "coffee", cat: "Tableware", name: "Coffee cups & saucers", cost: 100, on: false },
+    { id: "serviettes", cat: "Tableware", name: "Serviettes", cost: 500, on: false },
+    { id: "wine_glass", cat: "Tableware", name: "Glassware \u2014 Wine", cost: 150, on: false },
+    { id: "water_glass", cat: "Tableware", name: "Glassware \u2014 Water glass", cost: 150, on: false },
+    // Hot Service
+    { id: "chafing", cat: "Hot Service", name: "Hot bath / chafing dish", cost: 900, on: false },
+    { id: "sterno", cat: "Hot Service", name: "Sterno/gel fuel (per can)", cost: 400, on: false },
+    { id: "hot_unit", cat: "Hot Service", name: "Hot unit / table", cost: 1800, on: false },
+    { id: "induction", cat: "Hot Service", name: "Portable induction hob", cost: 600, on: false },
+    { id: "gn", cat: "Hot Service", name: "GN containers (set)", cost: 250, on: false },
+    { id: "heat_lamp", cat: "Hot Service", name: "Heat lamp", cost: 700, on: false },
+    { id: "travel_grill", cat: "Hot Service", name: "Small travel grill", cost: 5e3, on: false },
+    { id: "gas_heater", cat: "Hot Service", name: "Gas heater", cost: 8e3, on: false },
+    // Buffet
+    { id: "troglar", cat: "Buffet", name: "Stainless troglur", cost: 350, on: false },
+    { id: "carving", cat: "Buffet", name: "Carving board (100cm)", cost: 450, on: false },
+    { id: "buf_table", cat: "Buffet", name: "Buffet tables", cost: 1500, on: false },
+    { id: "linens", cat: "Buffet", name: "Table linens & skirting", cost: 1400, on: false },
+    { id: "utensils", cat: "Buffet", name: "Serving utensils set", cost: 200, on: false },
+    { id: "decor", cat: "Buffet", name: "D\xE9cor package", cost: 5e4, on: false },
+    { id: "viking", cat: "Buffet", name: "Viking boat", cost: 2500, on: false },
+    // Venue Setup
+    { id: "chairs", cat: "Venue Setup", name: "Chairs", cost: 1e3, on: false },
+    { id: "chair_covers", cat: "Venue Setup", name: "Chair covers", cost: 1e3, on: false },
+    { id: "guest_tables", cat: "Venue Setup", name: "Guest tables", cost: 1500, on: false },
+    { id: "tablecloths", cat: "Venue Setup", name: "Tablecloths", cost: 3e3, on: false },
+    { id: "candles", cat: "Venue Setup", name: "Candles", cost: 500, on: false },
+    { id: "candle_hold", cat: "Venue Setup", name: "Candle holders", cost: 2e3, on: false },
+    // Transport
+    { id: "thermo", cat: "Transport", name: "Thermo boxes", cost: 0, on: false },
+    // Washing
+    { id: "pre_wash", cat: "Washing", name: "Pre-event polish & check (hrs)", cost: 3500, on: false },
+    { id: "post_wash", cat: "Washing", name: "Post-event wash & repack (hrs)", cost: 3500, on: false },
+    { id: "clean_sup", cat: "Washing", name: "Cleaning supplies (flat)", cost: 3500, on: false },
+    // Third-Party Rentals — pass-through at cost (no margin, no VAT added; see note)
+    { id: "venue_rent", cat: "Third-Party Rentals", name: "Venue rental (3rd party)", cost: 15e4, on: false, pass: true },
+    { id: "vehicle_rent", cat: "Third-Party Rentals", name: "Vehicle rent (3rd party)", cost: 45e3, on: false, pass: true },
+    // Boat transfer converted from €800 at ~143.4 ISK/EUR (mid-market, checked Jul 2026) — update cost below if the rate moves
+    { id: "boat", cat: "Third-Party Rentals", name: "Boat transfer \u2014 glacier lagoon", cost: 114700, on: false, pass: true }
+  ];
+  function autoQty(id, g) {
+    const guests = g || 1;
+    const map = {
+      plates: Math.ceil(guests * 1.1),
+      bowl_lg: Math.ceil(guests * 1.1),
+      bowl_md: Math.ceil(guests * 0.7),
+      bowl_sm: Math.ceil(guests * 0.5),
+      cutlery: Math.ceil(guests * 1.1),
+      coffee: Math.ceil(guests * 0.8),
+      serviettes: Math.ceil(guests * 1.2),
+      wine_glass: guests,
+      water_glass: guests,
+      chafing: 2,
+      sterno: 8,
+      hot_unit: Math.ceil(guests / 120),
+      induction: 1,
+      gn: 2,
+      heat_lamp: Math.ceil(guests / 120),
+      travel_grill: 1,
+      gas_heater: 1,
+      troglar: Math.ceil(guests / 60),
+      carving: Math.ceil(guests / 120),
+      buf_table: guests <= 250 ? 1 : 2,
+      linens: guests <= 120 ? 2 : guests <= 250 ? 3 : 5,
+      utensils: 6,
+      decor: 1,
+      viking: 1,
+      chairs: guests,
+      chair_covers: guests,
+      guest_tables: Math.ceil(guests / 8),
+      tablecloths: Math.ceil(guests / 8),
+      candles: Math.ceil(guests / 4),
+      candle_hold: Math.ceil(guests / 4),
+      thermo: Math.ceil(guests / 250),
+      pre_wash: Math.max(1, Math.ceil(guests / 150)),
+      post_wash: Math.max(2, Math.ceil(guests / 75)),
+      clean_sup: 1,
+      venue_rent: 1,
+      vehicle_rent: 1,
+      boat: 1
+    };
+    return map[id] !== void 0 ? map[id] : 1;
+  }
+  function initEquip(g) {
+    return EQUIP_DEF.map((e) => ({ ...e, qty: autoQty(e.id, g) }));
+  }
+  function getEaster(Y) {
+    const a = Y % 19, b = Math.floor(Y / 100), c = Y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), dy = (h + l - 7 * m + 114) % 31 + 1;
+    return new Date(Y, mo - 1, dy);
+  }
+  function getHolidayMap(year) {
+    const e = getEaster(year), add = (d, n) => {
+      const r = new Date(d);
+      r.setDate(r.getDate() + n);
+      return r;
+    }, s = (d) => d.toISOString().slice(0, 10);
+    const aug1 = new Date(year, 7, 1), commerce = new Date(year, 7, 1 + ((8 - aug1.getDay()) % 7 || 7));
+    const apr19 = new Date(year, 3, 19), summer = new Date(year, 3, 19 + ((4 - apr19.getDay() + 7) % 7 || 7));
+    const m = {};
+    m[`${year}-01-01`] = { name: "N\xFD\xE1rsdagur", major: true };
+    m[s(add(e, -2))] = { name: "F\xF6studagurinn langi", major: true };
+    m[s(e)] = { name: "P\xE1skadagur", major: true };
+    m[s(add(e, 49))] = { name: "Hv\xEDtasunnudagur", major: true };
+    m[`${year}-06-17`] = { name: "\xDEj\xF3\xF0h\xE1t\xED\xF0ardagurinn", major: true };
+    m[s(commerce)] = { name: "Fr\xEDdagur verslunarmanna", major: true };
+    m[`${year}-12-24`] = { name: "A\xF0fangadagur", major: true };
+    m[`${year}-12-25`] = { name: "J\xF3ladagur", major: true };
+    m[`${year}-12-31`] = { name: "Gaml\xE1rsdagur", major: true };
+    m[s(add(e, -3))] = { name: "Sk\xEDrdagur", major: false };
+    m[s(add(e, 1))] = { name: "Annar \xED p\xE1skum", major: false };
+    m[s(summer)] = { name: "Sumardagurinn fyrsti", major: false };
+    m[`${year}-05-01`] = { name: "Verkal\xFD\xF0sdagurinn", major: false };
+    m[s(add(e, 39))] = { name: "Uppstigningardagur", major: false };
+    m[s(add(e, 50))] = { name: "Annar \xED hv\xEDtasunnu", major: false };
+    m[`${year}-12-26`] = { name: "Annar \xED j\xF3lum", major: false };
+    return m;
+  }
+  function checkHoliday(ds) {
+    if (!ds) return null;
+    const y = Number(ds.slice(0, 4));
+    return getHolidayMap(y)[ds] || null;
+  }
+  function checkEveOfHoliday(ds) {
+    if (!ds) return null;
+    const d = /* @__PURE__ */ new Date(ds + "T12:00:00");
+    d.setDate(d.getDate() + 1);
+    const next = d.toISOString().slice(0, 10);
+    return checkHoliday(next);
+  }
+  function detectDayType(ds, st) {
+    if (!ds) return { type: "manual", mult: 1.45, label: "No date \u2014 manual rate", color: "#9ca3af" };
+    const date = /* @__PURE__ */ new Date(ds + "T12:00:00"), dow = date.getDay();
+    const hol = checkHoliday(ds);
+    if (hol && hol.major) return { type: "holiday", mult: 1.9, label: `\u{1F384} ${hol.name} \u2014 st\xF3rh\xE1t\xED\xF0ardagur \xD71.9`, color: "#dc2626" };
+    if (hol) return { type: "holiday_reg", mult: 1.45, label: `\u{1F4C6} ${hol.name} \u2014 fr\xEDdagur \xD71.45`, color: "#d97706" };
+    if (dow === 0 || dow === 6) return { type: "weekend", mult: 1.45, label: "\u{1F4C5} Weekend \xD71.45", color: "#d97706" };
+    const [h, m] = (st || "09:00").split(":").map(Number);
+    if (h * 60 + (m || 0) >= 17 * 60) return { type: "evening", mult: 1.33, label: "\u{1F306} Weekday evening \xD71.33", color: "#7c3aed" };
+    return { type: "daytime", mult: 1, label: "\u2600\uFE0F Weekday daytime \xD71.0", color: "#15803d" };
+  }
+  function splitHours(lh, st) {
+    const [h, m] = (st || "09:00").split(":").map(Number), startMins = h * 60 + (m || 0), dayHrs = Math.max(0, Math.min(lh, (17 * 60 - startMins) / 60));
+    return { dayHrs, eveHrs: Math.max(0, lh - dayHrs) };
+  }
+  var defaultCustom = {
+    eventName: "",
+    guests: 20,
+    ingredientPP: 0,
+    prepHours: 0,
+    prepStaff: 1,
+    locationHours: 0,
+    locationStaff: 1,
+    travelHours: 0,
+    travelStaff: 1,
+    baseRate: 3500,
+    overtimeMult: 1,
+    salaryCosts: 1.2,
+    vehicles: 1,
+    kmOneWay: 0,
+    avgSpeedKmh: 80,
+    deliveryZone: "selfoss",
+    fuelPricePerL: 215,
+    fuelConsumptionPer100: 10,
+    vehicleOverheadPerKm: 18,
+    deliveryBaseFee: 0,
+    transportVATMode: "bundle11",
+    consumablesPP: 0,
+    contingencyPct: 7,
+    targetMarginPct: 25,
+    overheadPct: 10,
+    vatRate: 11,
+    planningHours: 1,
+    planningRate: 4500,
+    eventStartTime: "18:00",
+    autoOvertime: true,
+    monthlyRent: 2e5,
+    monthlyElectricity: 6e4,
+    monthlySubscriptions: 45e3,
+    monthlyInsurance: 25e3,
+    monthlyAccounting: 4e4,
+    monthlyOther: 3e4,
+    eventsPerMonth: 4
+  };
+  function EquipSection({ equipment, setEquipment, onRefresh, customItems, setCustomItems, touchedQty, setTouchedQty }) {
+    const stdTotal = equipment.filter((e) => e.on).reduce((s, e) => s + e.cost * e.qty, 0);
+    const custTotal = customItems.reduce((s, e) => s + (e.cost || 0) * (e.qty || 1), 0);
+    const total = stdTotal + custTotal;
+    const upd = (id, field, val) => setEquipment((p) => p.map((e) => e.id === id ? { ...e, [field]: val } : e));
+    const updQty = (id, val) => {
+      upd(id, "qty", val);
+      setTouchedQty((p) => ({ ...p, [id]: true }));
+    };
+    const resetQty = (id) => setTouchedQty((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
+    const addCustom = (cat) => setCustomItems((p) => [...p, { id: `c_${Date.now()}`, cat, name: "", qty: 1, cost: 0, pass: cat === "Third-Party Rentals" }]);
+    const updCustom = (id, field, val) => setCustomItems((p) => p.map((e) => e.id === id ? { ...e, [field]: val } : e));
+    const delCustom = (id) => setCustomItems((p) => p.filter((e) => e.id !== id));
+    const touchedCount = Object.keys(touchedQty).length;
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, "Unit costs ex. VAT = depreciation + wash per use."), /* @__PURE__ */ React.createElement("button", { onClick: onRefresh, title: touchedCount > 0 ? `${touchedCount} manually-edited quantity(ies) will be kept as-is` : "Recalculate all quantities from guest count", style: { fontSize: 11, padding: "5px 10px", border: "1px solid #e5e7eb", borderRadius: 7, background: "white", cursor: "pointer", fontWeight: 600 } }, "\u21BB Auto-refresh quantities", touchedCount > 0 ? ` (${touchedCount} locked)` : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "20px 1fr 55px 65px 90px 24px", gap: 5, marginBottom: 6, paddingBottom: 6, borderBottom: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", null), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.04em" } }, "Item"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" } }, "Qty"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" } }, "Price/unit"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("div", null)), EQUIP_CATS.map((cat) => {
+      const items = equipment.filter((e) => e.cat === cat);
+      const customs = customItems.filter((e) => e.cat === cat);
+      const catTotal = items.filter((e) => e.on).reduce((s, e) => s + e.cost * e.qty, 0) + customs.reduce((s, e) => s + (e.cost || 0) * (e.qty || 1), 0);
+      const isTP = cat === "Third-Party Rentals";
+      return /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: isTP ? "#0369a1" : "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" } }, cat, isTP && " \u2014 pass-through, no margin"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#374151" } }, catTotal > 0 ? fmt(catTotal) : "\u2014"), /* @__PURE__ */ React.createElement("button", { onClick: () => addCustom(cat), style: { fontSize: 10, padding: "2px 8px", border: "1px solid #0284c7", borderRadius: 6, background: "#e0f2fe", color: "#0369a1", cursor: "pointer", fontWeight: 700 } }, "+ Add"))), items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "grid", gridTemplateColumns: "20px 1fr 55px 65px 90px 24px", gap: 5, alignItems: "center", marginBottom: 4, opacity: item.on ? 1 : 0.4 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: item.on, onChange: (e) => upd(item.id, "on", e.target.checked), style: { width: 15, height: 15, accentColor: "#e11d48", cursor: "pointer" } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: item.on ? "#111" : "#9ca3af" } }, item.name), /* @__PURE__ */ React.createElement("input", { type: "number", value: item.qty, onChange: (e) => updQty(item.id, Math.max(0, Number(e.target.value))), disabled: !item.on, style: { ...I, textAlign: "center", padding: "4px 6px", fontSize: 12, borderColor: touchedQty[item.id] ? "#0284c7" : void 0, background: touchedQty[item.id] ? "#f0f9ff" : void 0 } }), /* @__PURE__ */ React.createElement("input", { type: "number", value: item.cost, onChange: (e) => upd(item.id, "cost", Math.max(0, Number(e.target.value))), disabled: !item.on, style: { ...I, padding: "4px 6px", fontSize: 12 } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", fontSize: 12, fontWeight: 600, color: item.on ? "#374151" : "#9ca3af" } }, item.on && item.cost > 0 ? fmt(item.cost * item.qty) : "\u2014"), touchedQty[item.id] ? /* @__PURE__ */ React.createElement("button", { onClick: () => resetQty(item.id), title: "Reset to auto-calculated quantity", style: { padding: "2px", border: "1px solid #bae6fd", borderRadius: 6, background: "#f0f9ff", color: "#0284c7", cursor: "pointer", fontSize: 11, lineHeight: 1 } }, "\u21BA") : /* @__PURE__ */ React.createElement("div", null))), customs.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "grid", gridTemplateColumns: "20px 1fr 55px 65px 90px 24px", gap: 5, alignItems: "center", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, textAlign: "center", color: "#0369a1" } }, "\uFF0B"), /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Item description", value: item.name, onChange: (e) => updCustom(item.id, "name", e.target.value), style: { ...I, padding: "4px 8px", fontSize: 12 } }), /* @__PURE__ */ React.createElement("input", { type: "number", min: 1, value: item.qty, onChange: (e) => updCustom(item.id, "qty", Math.max(1, Number(e.target.value))), style: { ...I, textAlign: "center", padding: "4px 6px", fontSize: 12 } }), /* @__PURE__ */ React.createElement("input", { type: "number", min: 0, value: item.cost, onChange: (e) => updCustom(item.id, "cost", Math.max(0, Number(e.target.value))), style: { ...I, padding: "4px 6px", fontSize: 12 } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", fontSize: 12, fontWeight: 600, color: "#374151" } }, fmt((item.cost || 0) * (item.qty || 1))), /* @__PURE__ */ React.createElement("button", { onClick: () => delCustom(item.id), style: { padding: "2px", border: "1px solid #fca5a5", borderRadius: 6, background: "#fef2f2", color: "#dc2626", cursor: "pointer", fontSize: 11, lineHeight: 1 } }, "\u2715"))), isTP && (items.some((i) => i.on) || customs.length > 0) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#0369a1", background: "#e0f2fe", borderRadius: 6, padding: "5px 10px", marginTop: 4 } }, "\u26A0\uFE0F Third-party items are invoiced at cost \u2014 no margin, no VAT added by this calculator. VAT follows the supplier's invoice (e.g. passenger boat transport is VAT-exempt; equipment rental 24%). Confirm treatment with your accountant."));
+    }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "2px solid #111", paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 14 } }, /* @__PURE__ */ React.createElement("span", null, "Equipment total"), /* @__PURE__ */ React.createElement("span", null, fmt(total))));
+  }
+  function App() {
+    const [tab, setTab] = (0, import_react.useState)("standard");
+    const [client, setClient] = (0, import_react.useState)({ name: "", email: "", phone: "", company: "" });
+    const [evDate, setEvDate] = (0, import_react.useState)("");
+    const [evType, setEvType] = (0, import_react.useState)(EVENT_TYPES[0]);
+    const [notes, setNotes] = (0, import_react.useState)("");
+    const [guests, setGuests] = (0, import_react.useState)(25);
+    const [menuId, setMenuId] = (0, import_react.useState)("bistro");
+    const [svcId, setSvcId] = (0, import_react.useState)("pickup");
+    const [coop, setCoop] = (0, import_react.useState)(false);
+    const [qid, setQid] = (0, import_react.useState)(genId);
+    const [stdAdj, setStdAdj] = (0, import_react.useState)(0);
+    const [C, setC] = (0, import_react.useState)(defaultCustom);
+    const [cc, setCc] = (0, import_react.useState)({ name: "", email: "", phone: "", company: "" });
+    const [cDate, setCDate] = (0, import_react.useState)("");
+    const [cNotes, setCNotes] = (0, import_react.useState)("");
+    const [cQid, setCQid] = (0, import_react.useState)(genId);
+    const [equipment, setEquipment] = (0, import_react.useState)(() => initEquip(defaultCustom.guests));
+    const [customItems, setCustomItems] = (0, import_react.useState)([]);
+    const [touchedQty, setTouchedQty] = (0, import_react.useState)({});
+    const [quotes, setQuotes] = (0, import_react.useState)([]);
+    const [templates, setTemplates] = (0, import_react.useState)([]);
+    const [modal, setModal] = (0, import_react.useState)(null);
+    const [tplName, setTplName] = (0, import_react.useState)("");
+    const [jsonPaste, setJsonPaste] = (0, import_react.useState)("");
+    const [jsonError, setJsonError] = (0, import_react.useState)("");
+    const [status, setStatus] = (0, import_react.useState)(null);
+    const [printContent, setPrintContent] = (0, import_react.useState)(null);
+    const printRef = (0, import_react.useRef)();
+    (0, import_react.useEffect)(() => {
+      loadAll();
+    }, []);
+    (0, import_react.useEffect)(() => {
+      const reportHeight = () => {
+        const h = document.body.scrollHeight;
+        window.parent.postMessage({ type: "resize-iframe", height: h }, "*");
+      };
+      const ro = new ResizeObserver(reportHeight);
+      ro.observe(document.body);
+      reportHeight();
+      return () => ro.disconnect();
+    }, []);
+    (0, import_react.useEffect)(() => {
+      if (modal) window.parent.postMessage({ type: "scroll-to-frame-top" }, "*");
+    }, [modal]);
+    (0, import_react.useEffect)(() => {
+      if (printContent) window.parent.postMessage({ type: "scroll-to-frame-top" }, "*");
+    }, [printContent]);
+    const loadAll = (0, import_react.useCallback)(() => {
+      let localQ = [], localT = [];
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("cq:")) {
+            try {
+              localQ.push(JSON.parse(localStorage.getItem(k)));
+            } catch {
+            }
+          }
+        }
+        setQuotes(localQ.sort((a, b) => b.ts - a.ts));
+      } catch {
+      }
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith("tpl:")) {
+            try {
+              localT.push(JSON.parse(localStorage.getItem(k)));
+            } catch {
+            }
+          }
+        }
+        setTemplates(localT.sort((a, b) => b.savedAt - a.savedAt));
+      } catch {
+      }
+      fetch(`${SHEET_API}?action=listQuotes`).then((r) => r.json()).then((res) => {
+        if (res && res.ok && Array.isArray(res.items)) {
+          const byId = {};
+          [...localQ, ...res.items].forEach((q) => {
+            if (q && q.id) byId[q.id] = q;
+          });
+          setQuotes(Object.values(byId).sort((a, b) => b.ts - a.ts));
+        }
+      }).catch(() => {
+      });
+      fetch(`${SHEET_API}?action=listTemplates`).then((r) => r.json()).then((res) => {
+        if (res && res.ok && Array.isArray(res.items)) {
+          const byId = {};
+          [...localT, ...res.items].forEach((t) => {
+            if (t && t.id) byId[t.id] = t;
+          });
+          setTemplates(Object.values(byId).sort((a, b) => b.savedAt - a.savedAt));
+        }
+      }).catch(() => {
+      });
+    }, []);
+    const menu = MENUS.find((m) => m.id === menuId), svc = SERVICES.find((s) => s.id === svcId), tier = TIERS.find((t) => guests >= t.min);
+    const gDisc = tier.rate, cDisc = coop ? COOP_DISC : 0, ppp = Math.round(menu.price * (1 - gDisc) * (1 - cDisc));
+    const fSub = ppp * guests, bSub = svc.bar ? BAR_PP * guests : 0, vFee = svc.venue ? VENUE_BASE : 0, del = svc.delivery;
+    const credit = svc.staff ? Math.round((fSub + bSub) * CREDIT_RATE) : 0;
+    const exVAT = fSub + bSub + vFee + del - (svc.venue ? credit : 0);
+    const stdTotal = Math.round((exVAT + Math.round(fSub * VAT_FOOD) + Math.round(bSub * VAT_BAR)) * (1 + stdAdj / 100));
+    const savedAmt = menu.price * guests - fSub;
+    const upd = (k, v) => setC((p) => ({ ...p, [k]: v })), updN = (k) => (e) => upd(k, parseFloat(e.target.value) || 0);
+    const prepRate = C.baseRate * SALARY_COSTS;
+    const dayType = detectDayType(cDate, C.eventStartTime);
+    const fieldMult = C.autoOvertime ? dayType.mult : C.overtimeMult;
+    const fieldRate = C.baseRate * fieldMult * SALARY_COSTS;
+    const { dayHrs, eveHrs } = dayType.type === "daytime" ? splitHours(C.locationHours, C.eventStartTime) : { dayHrs: 0, eveHrs: C.locationHours };
+    const locCost = dayType.type === "daytime" ? dayHrs * C.locationStaff * prepRate + eveHrs * C.locationStaff * C.baseRate * 1.33 * SALARY_COSTS : C.locationHours * C.locationStaff * fieldRate;
+    const prepCost = C.prepStaff * C.prepHours * prepRate;
+    const travCost = C.travelStaff * C.travelHours * fieldRate;
+    const planCost = C.planningHours * C.planningRate * SALARY_COSTS;
+    const labourTotal = prepCost + locCost + travCost + planCost;
+    const ingCost = C.guests * C.ingredientPP;
+    const vehicleCostPerKm = C.fuelPricePerL * (C.fuelConsumptionPer100 / 100) + KM_TAX + C.vehicleOverheadPerKm;
+    const kmCost = C.vehicles * C.kmOneWay * 2 * vehicleCostPerKm;
+    const transCost = C.deliveryZone === "selfoss" ? C.guests < 30 ? 2990 : 0 : (C.deliveryBaseFee || 0) + kmCost;
+    const suggestedTravelHrs = C.kmOneWay > 0 ? round5(C.kmOneWay * 2 / C.avgSpeedKmh) : 0;
+    const travelLinked = suggestedTravelHrs > 0 && Math.abs(C.travelHours - suggestedTravelHrs) < 0.3;
+    const consCost = C.guests * C.consumablesPP;
+    const consScale = C.guests <= 20 ? 1.3 : C.guests <= 60 ? 1 : C.guests <= 150 ? 0.85 : 0.7;
+    const suggestedConsumablesPP = Math.round(150 * consScale / 10) * 10;
+    const isBundle = C.transportVATMode === "bundle11";
+    const equipOn = equipment.filter((e) => e.on);
+    const equipMarginTotal = equipOn.filter((e) => !e.pass).reduce((s, e) => s + e.cost * e.qty, 0) + customItems.filter((e) => !e.pass).reduce((s, e) => s + (e.cost || 0) * (e.qty || 1), 0);
+    const passTotal = equipOn.filter((e) => e.pass).reduce((s, e) => s + e.cost * e.qty, 0) + customItems.filter((e) => e.pass).reduce((s, e) => s + (e.cost || 0) * (e.qty || 1), 0);
+    const equipTotal = equipMarginTotal + passTotal;
+    const cateringDirectCost = ingCost + labourTotal + (isBundle ? transCost : 0) + equipMarginTotal + consCost;
+    const contingencyAmt = cateringDirectCost * (C.contingencyPct / 100);
+    const totalCost = cateringDirectCost + contingencyAmt + (isBundle ? 0 : transCost) + passTotal;
+    const combinedDeduct = C.targetMarginPct / 100 + C.overheadPct / 100;
+    const cateringRevNeeded = combinedDeduct < 1 ? (cateringDirectCost + contingencyAmt) / (1 - combinedDeduct) : (cateringDirectCost + contingencyAmt) * 2;
+    const revNeeded = cateringRevNeeded + (isBundle ? 0 : transCost) + passTotal;
+    const overheadContribution = Math.round(cateringRevNeeded * (C.overheadPct / 100));
+    const ppExVAT = C.guests > 0 ? revNeeded / C.guests : 0;
+    const foodRevenue = cateringRevNeeded;
+    const foodVAT = Math.round(foodRevenue * (C.vatRate / 100));
+    const transVAT = isBundle ? 0 : Math.round(transCost * 0.24);
+    const totalVAT = foodVAT + transVAT;
+    const totalInclVAT = revNeeded + totalVAT;
+    const ppInclVAT = C.guests > 0 ? totalInclVAT / C.guests : 0;
+    const actualMargin = cateringRevNeeded > 0 ? (cateringRevNeeded - (cateringDirectCost + contingencyAmt)) / cateringRevNeeded : 0;
+    const holInfo = checkHoliday(cDate), eveInfo = checkEveOfHoliday(cDate);
+    function applyPreset(p) {
+      setC((prev) => ({ ...defaultCustom, ...prev, ...p.cfg }));
+      const base = initEquip(p.cfg.guests || 50);
+      if (p.equipment) {
+        const overrides = Object.fromEntries(p.equipment.map((e) => [e.id, e]));
+        setEquipment(base.map((e) => overrides[e.id] ? { ...e, ...overrides[e.id] } : e));
+        setTouchedQty(Object.fromEntries(p.equipment.filter((e) => e.on).map((e) => [e.id, true])));
+      } else {
+        setEquipment(base);
+        setTouchedQty({});
+      }
+      setCQid(genId());
+    }
+    function refreshEquipQty() {
+      setEquipment((prev) => prev.map((e) => touchedQty[e.id] ? e : { ...e, qty: autoQty(e.id, C.guests) }));
+    }
+    async function handleSave(isCustom) {
+      setStatus("saving");
+      const id = isCustom ? cQid : qid;
+      const q = isCustom ? { id, ts: Date.now(), type: "custom", client: cc, evDate: cDate, notes: cNotes, eventName: C.eventName, guests: C.guests, totalCost, totalInclVAT, ppInclVAT, ppExVAT, custom: C, equipment, customItems } : { id, ts: Date.now(), type: "standard", client, evDate, evType, notes, guests, menuId, svcId, coop, total: stdTotal, menuName: menu.name };
+      try {
+        localStorage.setItem(`cq:${id}`, JSON.stringify(q));
+        try {
+          fetch(SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "saveQuote", quote: q }) });
+        } catch (e) {
+          console.warn("Sheet save failed:", e);
+        }
+        const generated = (/* @__PURE__ */ new Date()).toLocaleString("en-GB");
+        const quoteJson = JSON.stringify(q, null, 2);
+        try {
+          await fetch("https://api.emailjs.com/api/v1.0/email/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ service_id: EMAILJS.serviceId, template_id: EMAILJS.templateId, user_id: EMAILJS.publicKey, template_params: { quote_id: id, generated, client_name: (isCustom ? cc.name : client.name) || "\u2013", client_email: (isCustom ? cc.email : client.email) || "\u2013", client_phone: (isCustom ? cc.phone : client.phone) || "\u2013", event_name: isCustom ? C.eventName : menu.name, event_date: (isCustom ? cDate : evDate) || "\u2013", guests: String(isCustom ? C.guests : guests), total: fmt(isCustom ? totalInclVAT : stdTotal), per_person: isCustom ? fmt(ppInclVAT) : "\u2013", margin: isCustom ? pct(actualMargin) : "\u2013", quote_json: quoteJson } }) });
+        } catch (e) {
+          console.warn("EmailJS failed:", e);
+        }
+        loadAll();
+        setStatus("saved");
+      } catch {
+        setStatus("error");
+      }
+      setTimeout(() => setStatus(null), 3e3);
+    }
+    function saveTemplate() {
+      const name = tplName.trim() || C.eventName;
+      if (!name) {
+        return;
+      }
+      const tpl = { id: `tpl_${Date.now()}`, savedAt: Date.now(), name, config: C, equipment, customItems };
+      localStorage.setItem(`tpl:${tpl.id}`, JSON.stringify(tpl));
+      try {
+        fetch(SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "saveTemplate", template: tpl }) });
+      } catch (e) {
+        console.warn("Sheet template save failed:", e);
+      }
+      loadAll();
+      setModal(null);
+      setTplName("");
+    }
+    function deleteTemplate(id) {
+      try {
+        localStorage.removeItem(`tpl:${id}`);
+        fetch(SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "deleteTemplate", id }) }).catch(() => {
+        });
+        loadAll();
+      } catch {
+      }
+    }
+    function deleteQuote(id) {
+      try {
+        localStorage.removeItem(`cq:${id}`);
+        fetch(SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "deleteQuote", id }) }).catch(() => {
+        });
+        loadAll();
+      } catch {
+      }
+    }
+    function loadQuote(q) {
+      if (q.type === "custom") {
+        setCc(q.client || { name: "", email: "", phone: "", company: "" });
+        setCDate(q.evDate || "");
+        setCNotes(q.notes || "");
+        if (q.custom) setC(q.custom);
+        if (q.equipment) {
+          setEquipment(q.equipment);
+          setTouchedQty(Object.fromEntries(q.equipment.filter((e) => e.on).map((e) => [e.id, true])));
+        }
+        setCustomItems(q.customItems || []);
+        setCQid(q.id);
+        setTab("custom");
+      } else {
+        setClient(q.client || { name: "", email: "", phone: "", company: "" });
+        setEvDate(q.evDate || "");
+        setEvType(q.evType || EVENT_TYPES[0]);
+        setNotes(q.notes || "");
+        setGuests(q.guests || 10);
+        setMenuId(q.menuId || "bistro");
+        setSvcId(q.svcId || "pickup");
+        setCoop(q.coop || false);
+        setQid(q.id);
+        setTab("standard");
+      }
+      setModal(null);
+    }
+    function loadTemplate(tpl) {
+      setC({ ...defaultCustom, ...tpl.config });
+      if (tpl.equipment) {
+        setEquipment(tpl.equipment);
+        setTouchedQty(Object.fromEntries(tpl.equipment.filter((e) => e.on).map((e) => [e.id, true])));
+      }
+      setCustomItems(tpl.customItems || []);
+      setTab("custom");
+      setModal(null);
+      setCQid(genId());
+    }
+    function loadQuoteFromJson(text) {
+      try {
+        const q = JSON.parse(text);
+        if (!q || !q.id) throw new Error("Missing id");
+        loadQuote(q);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    function buildHTML(isCustom, reviewMode) {
+      const cl = isCustom ? cc : client, dt = isCustom ? cDate : evDate, nt = isCustom ? cNotes : notes, thisQid = isCustom ? cQid : qid;
+      const isBundle2 = C.transportVATMode === "bundle11";
+      const reviewBanner = reviewMode ? `<div style="background:#fef9c3;border:2px dashed #ca8a04;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#78350f"><strong>\u26A0\uFE0F INTERNAL REVIEW DRAFT \u2014 Not for client distribution</strong></div>` : "";
+      let costBlock = "";
+      if (isCustom && reviewMode) {
+        costBlock = `<h3 style="font-size:13px;margin:20px 0 8px;border-top:1px solid #e5e7eb;padding-top:16px">Cost Breakdown (internal)</h3>
+    <table style="font-size:12px;border-collapse:collapse;width:100%">
+      <tr style="background:#f9fafb"><td style="padding:4px 8px;font-weight:700;border:1px solid #e5e7eb">Item</td><td style="padding:4px 8px;font-weight:700;border:1px solid #e5e7eb">Calculation</td><td style="padding:4px 8px;text-align:right;font-weight:700;border:1px solid #e5e7eb">Amount</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Ingredients</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${fmt(C.ingredientPP)}/pax \xD7 ${C.guests}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(ingCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Prep labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.prepStaff} staff \xD7 ${C.prepHours}h \xD7 ${fmt(prepRate)}/hr (base)</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(prepCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">On-location labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.locationStaff} staff \xD7 ${C.locationHours}h @ \xD7${fieldMult} ${dayType.label}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(locCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Travel labour</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.travelStaff} staff \xD7 ${C.travelHours}h @ ${fmt(fieldRate)}/hr</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(travCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Planning overhead</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.planningHours}h \xD7 ${fmt(C.planningRate * C.salaryCosts)}/hr</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(planCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Transport</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${C.vehicles} vehicle(s) \xD7 ${C.kmOneWay * 2}km @ ${fmt(Math.round(vehicleCostPerKm))}/km</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(transCost)}</td></tr>
+      <tr style="background:#f3f4f6"><td colspan="3" style="padding:6px 8px;font-weight:700;border:1px solid #e5e7eb;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280">Equipment \u2014 ${equipment.filter((e) => e.on && !e.pass).length + customItems.filter((e) => !e.pass).length} items (margined)</td></tr>
+      ${equipment.filter((e) => e.on && !e.pass && e.cost > 0).map((e) => `<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#374151">${e.name}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} \xD7 ${fmt(e.cost)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(e.cost * e.qty)}</td></tr>`).join("")}
+      ${customItems.filter((e) => !e.pass && e.cost > 0).map((e) => `<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#374151">${e.name || "Custom item"}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} \xD7 ${fmt(e.cost || 0)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt((e.cost || 0) * (e.qty || 1))}</td></tr>`).join("")}
+      <tr style="background:#fafafa"><td style="padding:4px 8px;border:1px solid #e5e7eb;font-weight:600">Equipment subtotal (margined)</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb;font-weight:600">${fmt(equipMarginTotal)}</td></tr>
+      ${passTotal > 0 ? `<tr style="background:#eff6ff"><td colspan="3" style="padding:6px 8px;font-weight:700;border:1px solid #e5e7eb;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#0369a1">Third-party pass-through \u2014 at cost, no margin, VAT per supplier invoice</td></tr>
+      ${equipment.filter((e) => e.on && e.pass).map((e) => `<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#0c4a6e">${e.name}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} \xD7 ${fmt(e.cost)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(e.cost * e.qty)}</td></tr>`).join("")}
+      ${customItems.filter((e) => e.pass && e.cost > 0).map((e) => `<tr><td style="padding:3px 8px 3px 20px;border:1px solid #e5e7eb;color:#0c4a6e">${e.name || "Third-party item"}</td><td style="padding:3px 8px;border:1px solid #e5e7eb;color:#6b7280">${e.qty} \xD7 ${fmt(e.cost || 0)}</td><td style="padding:3px 8px;text-align:right;border:1px solid #e5e7eb">${fmt((e.cost || 0) * (e.qty || 1))}</td></tr>`).join("")}
+      <tr style="background:#fafafa"><td style="padding:4px 8px;border:1px solid #e5e7eb;font-weight:600">Pass-through subtotal</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb;font-weight:600">${fmt(passTotal)}</td></tr>` : ""}
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Consumables</td><td style="padding:4px 8px;border:1px solid #e5e7eb;color:#6b7280">${fmt(C.consumablesPP)}/pax \xD7 ${C.guests}</td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(consCost)}</td></tr>
+      <tr><td style="padding:4px 8px;border:1px solid #e5e7eb">Contingency (${C.contingencyPct}% of catering direct)</td><td style="border:1px solid #e5e7eb"></td><td style="padding:4px 8px;text-align:right;border:1px solid #e5e7eb">${fmt(contingencyAmt)}</td></tr>
+      <tr style="background:#f0fdf4"><td colspan="2" style="padding:6px 8px;font-weight:700;border:1px solid #e5e7eb">Total cost \u2192 catering margin (${C.targetMarginPct}% target / ${pct(actualMargin)} actual)</td><td style="padding:6px 8px;text-align:right;font-weight:700;border:1px solid #e5e7eb">${fmt(totalCost)} \u2192 +${fmt(Math.round(cateringRevNeeded - (cateringDirectCost + contingencyAmt)))}</td></tr>
+    </table>
+    <div style="margin-top:8px;background:#fef3c7;border-radius:6px;padding:8px 12px;font-size:12px">
+      <strong>VAT:</strong> ${isBundle2 ? `All at 11% (transport bundled into catering)` : `Food/service ${fmt(foodVAT)} (11%) + Transport ${fmt(transVAT)} (24%) = ${fmt(totalVAT)}`}
+    </div>`;
+      }
+      const feedbackBlock = reviewMode ? `<div style="margin-top:28px;border-top:2px dashed #ca8a04;padding-top:16px"><h3 style="font-size:13px;color:#78350f;margin-bottom:10px">\u270F\uFE0F Review Feedback</h3><table style="width:100%;font-size:12px;border-collapse:collapse">${["Ingredient cost accurate?", "Labour hours realistic?", "Equipment list complete?", "Margin acceptable?", "Pricing competitive?", "Other comments"].map((q) => `<tr><td style="padding:8px 10px;border:1px solid #e5e7eb;width:40%">${q}</td><td style="padding:8px 10px;border:1px solid #e5e7eb">&nbsp;</td></tr>`).join("")}</table><p style="font-size:11px;color:#9ca3af;margin-top:8px">Reviewed by: ___________________ &nbsp;&nbsp; Date: ___________________</p></div>` : "";
+      let rows = isCustom ? `
+      <tr><td><strong>${C.eventName}</strong> \u2014 ${C.guests} guests</td><td></td></tr>
+      <tr><td style="color:#6b7280;padding-left:12px">Ingredients (${fmt(C.ingredientPP)}/pax \xD7 ${C.guests})</td><td style="text-align:right;color:#6b7280">${fmt(ingCost)}</td></tr>
+      <tr><td style="color:#6b7280;padding-left:12px">Labour (prep + location + travel + planning)</td><td style="text-align:right;color:#6b7280">${fmt(labourTotal)}</td></tr>
+      ${isBundle2 ? "" : `<tr><td style="color:#6b7280;padding-left:12px">Transport (${C.vehicles} vehicle${C.vehicles > 1 ? "s" : ""}, ${C.kmOneWay * 2}km)</td><td style="text-align:right;color:#6b7280">${fmt(transCost)}</td></tr>`}
+      <tr><td style="color:#6b7280;padding-left:12px">Equipment & consumables</td><td style="text-align:right;color:#6b7280">${fmt(equipMarginTotal + consCost)}</td></tr>
+      <tr class="sub"><td>Catering subtotal ex. VAT</td><td style="text-align:right">${fmt(Math.round(cateringRevNeeded))}</td></tr>
+      <tr class="sub"><td>VAT ${C.vatRate}%</td><td style="text-align:right">${fmt(foodVAT)}</td></tr>
+      ${!isBundle2 && transCost > 0 ? `<tr class="sub"><td>Transport ex. VAT</td><td style="text-align:right">${fmt(transCost)}</td></tr><tr class="sub"><td>Transport VAT 24%</td><td style="text-align:right">${fmt(transVAT)}</td></tr>` : ""}
+      ${passTotal > 0 ? `<tr class="sub"><td>Third-party services (at cost \u2014 VAT per supplier invoice)</td><td style="text-align:right">${fmt(passTotal)}</td></tr>` : ""}
+    ` : `
+      <tr><td><strong>${menu.name}</strong> \u2014 ${fmt(ppp)}/pax \xD7 ${guests}</td><td style="text-align:right">${fmt(fSub)}</td></tr>
+      ${gDisc > 0 || cDisc > 0 ? `<tr><td style="color:#059669">Discount (${Math.round((1 - (1 - gDisc) * (1 - cDisc)) * 100)}%)</td><td style="text-align:right;color:#059669">\u2212${fmt(savedAmt)}</td></tr>` : ""}
+      ${svc.bar ? `<tr><td>Bar Package</td><td style="text-align:right">${fmt(bSub)}</td></tr>` : ""}
+      ${svc.venue ? `<tr><td>Venue Rental</td><td style="text-align:right">${fmt(vFee)}</td></tr>` : ""}
+      ${del > 0 ? `<tr><td>Delivery</td><td style="text-align:right">${fmt(del)}</td></tr>` : ""}
+      ${svc.venue && credit > 0 ? `<tr><td style="color:#059669">Venue Credit</td><td style="text-align:right;color:#059669">\u2212${fmt(credit)}</td></tr>` : ""}
+      <tr class="sub"><td>Subtotal ex. VAT</td><td style="text-align:right">${fmt(exVAT)}</td></tr>
+      <tr class="sub"><td>VAT</td><td style="text-align:right">${fmt(Math.round(fSub * VAT_FOOD) + Math.round(bSub * VAT_BAR))}</td></tr>
+    `;
+      const totStr = isCustom ? fmt(totalInclVAT) : fmt(stdTotal);
+      return `<html><head><style>body{font-family:Georgia,serif;color:#111;max-width:720px;margin:0 auto;padding:24px;font-size:14px}.hdr{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:14px;margin-bottom:18px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px}td{padding:4px 0}tr.sub td{border-top:1px solid #ddd;padding-top:7px;font-size:12px;color:#666}tr.tot td{border-top:2px solid #111;padding-top:10px;font-size:17px;font-weight:700}.pol{margin-top:24px;border-top:1px solid #ddd;padding-top:14px;font-size:11px;color:#666;line-height:1.9}</style></head><body>
+    ${reviewBanner}<div class="hdr"><div><strong style="font-size:20px">Veislu\xFEj\xF3nusta Su\xF0urlands</strong><br><span style="font-size:13px;color:#666">Catering Quote${reviewMode ? " \u2014 Internal Review" : ""}</span><br><span style="font-size:11px;color:#aaa">Br\xFAartorg, Selfoss \xB7 +354 451-3320 \xB7 frokenselfoss.is</span></div>
+    <div style="text-align:right"><span style="font-size:11px;color:#aaa">Quote</span><br><strong style="font-size:15px">${thisQid}</strong><br><span style="font-size:11px;color:#aaa">${(/* @__PURE__ */ new Date()).toLocaleDateString("en-GB")}</span></div></div>
+    <div style="margin-bottom:16px;font-size:13px;line-height:1.7"><strong>${cl.name || "Client"}</strong>${cl.company ? `<br>${cl.company}` : ""}${cl.email ? `<br>${cl.email}` : ""}${cl.phone ? `<br>${cl.phone}` : ""}
+    <br><em>${dt || "Date TBD"} \xB7 ${isCustom ? C.eventName : evType} \xB7 ${isCustom ? C.guests : guests} guests</em></div>
+    <table>${rows}<tr class="tot"><td>TOTAL (incl. VAT)</td><td style="text-align:right">${totStr}</td></tr>
+    ${isCustom ? `<tr><td style="padding-top:5px;color:#92400e"><strong>Per person incl. VAT</strong></td><td style="text-align:right;color:#92400e"><strong>${fmt(ppInclVAT)}</strong></td></tr>` : `<tr><td style="padding-top:5px;color:#92400e"><strong>Per person incl. VAT</strong></td><td style="text-align:right;color:#92400e"><strong>${fmt(Math.round(stdTotal / guests))}</strong></td></tr>`}
+    </table>${nt ? `<p style="font-size:12px;margin-top:10px"><strong>Notes:</strong> ${nt}</p>` : ""}
+    ${costBlock}${feedbackBlock}
+    ${!reviewMode ? `<div class="pol"><strong>Booking Policy</strong><br>${POLICY.map((p) => `${p.icon} ${p.text}`).join("<br>")}</div>` : ""}
+    ${!reviewMode ? `<script>window.onload=()=>window.print()<\/script>` : ""}</body></html>`;
+    }
+    function openPrint(isCustom, rm) {
+      setPrintContent({ html: buildHTML(isCustom, rm), reviewMode: rm });
+    }
+    function doPrint() {
+      const iframe = printRef.current && printRef.current.querySelector("iframe");
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }
+    }
+    const menuCats = [...new Set(MENUS.map((m) => m.cat))];
+    const TB = (id, lbl) => /* @__PURE__ */ React.createElement("button", { onClick: () => setTab(id), style: { padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === id ? "#e11d48" : "transparent", color: tab === id ? "white" : "#6b7280" } }, lbl);
+    return /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "system-ui,sans-serif", minHeight: "100vh", background: "#f9fafb", fontSize: 14, color: "#111" } }, /* @__PURE__ */ React.createElement("style", null, `@media(max-width:680px){.g2c{grid-template-columns:1fr!important}.mg{grid-template-columns:1fr!important}}`), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderBottom: "1px solid #e5e7eb", padding: "10px 14px", position: "sticky", top: 0, zIndex: 30, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, "Veislu\xFEj\xF3nusta Su\xF0urlands"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "Catering Quote Calculator")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, background: "#f3f4f6", borderRadius: 10, padding: 3 } }, TB("standard", "\u{1F4CB} Standard"), TB("custom", "\u{1F527} Custom Event")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("history"), style: BS("#fff", "#e5e7eb", "#374151") }, "\u{1F4DC} History", quotes.length > 0 && /* @__PURE__ */ React.createElement(Bge, { n: quotes.length })), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("templates"), style: BS("#fff", "#e5e7eb", "#374151") }, "\u{1F4DA} Menus", templates.length > 0 && /* @__PURE__ */ React.createElement(Bge, { n: templates.length, color: "#7c3aed" })), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setJsonPaste("");
+      setJsonError("");
+      setModal("loadJson");
+    }, style: BS("#fff", "#e5e7eb", "#374151") }, "\u{1F4E5} Load JSON"), /* @__PURE__ */ React.createElement("button", { onClick: () => handleSave(tab === "custom"), disabled: status === "saving", style: { ...BS("#e11d48", "#e11d48", "white"), fontWeight: 700, opacity: status === "saving" ? 0.6 : 1 } }, status === "saving" ? "\u2026" : status === "saved" ? "\u2713 Saved!" : "\u{1F4BE} Save"), /* @__PURE__ */ React.createElement("button", { onClick: () => openPrint(tab === "custom", false), style: BS("#fff", "#e5e7eb", "#374151") }, "\u{1F5A8}\uFE0F Client PDF"), /* @__PURE__ */ React.createElement("button", { onClick: () => openPrint(tab === "custom", true), style: BS("#fef9c3", "#ca8a04", "#92400e") }, "\u{1F441}\uFE0F Review PDF"))), tab === "standard" && /* @__PURE__ */ React.createElement("div", { className: "mg", style: { maxWidth: 1080, margin: "0 auto", padding: 14, display: "grid", gridTemplateColumns: "1fr 310px", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "10px 14px", display: "flex", gap: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tog, { val: coop, set: setCoop }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 12 } }, "\u{1F91D} Co-op Partner Mode"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "12% wholesale discount \u2014 partner use only"))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F464} Client & Event" }, /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, [["Name", "name", "text"], ["Company", "company", "text"], ["Email", "email", "email"], ["Phone", "phone", "tel"]].map(([l, k, t]) => /* @__PURE__ */ React.createElement(F, { key: k, label: l }, /* @__PURE__ */ React.createElement("input", { type: t, value: client[k], onChange: (e) => setClient({ ...client, [k]: e.target.value }), style: I }))), /* @__PURE__ */ React.createElement(F, { label: "Event Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", value: evDate, onChange: (e) => setEvDate(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Event Type" }, /* @__PURE__ */ React.createElement("select", { value: evType, onChange: (e) => setEvType(e.target.value), style: { ...I, background: "white" } }, EVENT_TYPES.map((t) => /* @__PURE__ */ React.createElement("option", { key: t }, t)))), /* @__PURE__ */ React.createElement(F, { label: "Notes", span2: true }, /* @__PURE__ */ React.createElement("textarea", { rows: 2, value: notes, onChange: (e) => setNotes(e.target.value), style: { ...I, resize: "vertical" } })))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F465} Guest Count" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("input", { type: "range", min: 1, max: 500, value: guests, onChange: (e) => setGuests(Number(e.target.value)), style: { width: "100%", accentColor: "#e11d48" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" } }, /* @__PURE__ */ React.createElement("span", null, "1"), /* @__PURE__ */ React.createElement("span", null, "100"), /* @__PURE__ */ React.createElement("span", null, "200"), /* @__PURE__ */ React.createElement("span", null, "300"), /* @__PURE__ */ React.createElement("span", null, "400"), /* @__PURE__ */ React.createElement("span", null, "500"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(SB, { onClick: () => setGuests(Math.max(1, guests - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", value: guests, onChange: (e) => setGuests(Math.min(500, Math.max(1, Number(e.target.value)))), style: { width: 56, textAlign: "center", border: "1px solid #e5e7eb", borderRadius: 8, padding: 4, fontSize: 17, fontWeight: 700, outline: "none" } }), /* @__PURE__ */ React.createElement(SB, { onClick: () => setGuests(Math.min(500, guests + 1)) }, "+"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" } }, [...TIERS].reverse().map((t) => /* @__PURE__ */ React.createElement("span", { key: t.min, style: { fontSize: 11, padding: "2px 10px", borderRadius: 20, fontWeight: 600, background: tier.min === t.min ? "#fee2e2" : "#f3f4f6", color: tier.min === t.min ? "#be123c" : "#9ca3af" } }, t.label, t.rate > 0 ? ` \u2212${Math.round(t.rate * 100)}%` : ""))), (gDisc > 0 || cDisc > 0) && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 12, color: "#065f46", background: "#d1fae5", padding: "6px 12px", borderRadius: 8 } }, "\u2713 ", Math.round((1 - (1 - gDisc) * (1 - cDisc)) * 100), "% off \u2192 ", fmt(ppp), "/pax \xB7 Saving: ", /* @__PURE__ */ React.createElement("strong", null, fmt(savedAmt)))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F37D}\uFE0F Menu" }, menuCats.map((cat) => /* @__PURE__ */ React.createElement("div", { key: cat, style: { marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 } }, cat), MENUS.filter((m) => m.cat === cat).map((m) => {
+      const ep = Math.round(m.price * (1 - gDisc) * (1 - cDisc)), sel = menuId === m.id;
+      return /* @__PURE__ */ React.createElement("div", { key: m.id, onClick: () => setMenuId(m.id), style: { display: "flex", gap: 8, padding: "8px 10px", borderRadius: 9, border: `1.5px solid ${sel ? "#e11d48" : "#e5e7eb"}`, background: sel ? "#fff1f2" : "white", cursor: "pointer", marginBottom: 4 } }, /* @__PURE__ */ React.createElement(Rad, { sel }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13 } }, m.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, m.desc, m.min > 1 && ` \xB7 Min ${m.min}`)), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#be123c", fontSize: 13 } }, fmt(ep)), ep < m.price && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", textDecoration: "line-through" } }, fmt(m.price)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "/pax")));
+    })))), /* @__PURE__ */ React.createElement(Card, { title: "\u2699\uFE0F Service Level" }, SERVICES.map((s) => {
+      const sel = svcId === s.id, perks = [];
+      if (s.staff) perks.push("Free delivery \u226430km", `${Math.round(CREDIT_RATE * 100)}% venue credit`);
+      if (s.bar) perks.push("Bar incl.");
+      if (s.venue) perks.push("Venue rental");
+      return /* @__PURE__ */ React.createElement("div", { key: s.id, onClick: () => setSvcId(s.id), style: { display: "flex", gap: 8, padding: "8px 10px", borderRadius: 9, border: `1.5px solid ${sel ? "#e11d48" : "#e5e7eb"}`, background: sel ? "#fff1f2" : "white", cursor: "pointer", marginBottom: 5 } }, /* @__PURE__ */ React.createElement(Rad, { sel }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13 } }, s.icon, " ", s.name), perks.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" } }, perks.map((p) => /* @__PURE__ */ React.createElement("span", { key: p, style: { fontSize: 10, background: "#d1fae5", color: "#065f46", padding: "2px 7px", borderRadius: 20, fontWeight: 600 } }, p)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", flexShrink: 0 } }, s.delivery > 0 ? `+${fmt(s.delivery)}` : s.staff ? "Staff incl." : "Free"));
+    }))), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", top: 60, alignSelf: "start", display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement(SHdr, { qid }), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid #f3f4f6", paddingBottom: 10, marginBottom: 10, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600 } }, client.name || "Client"), client.company && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, client.company), client.email && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, client.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginTop: 2 } }, evDate || "Date TBD", " \xB7 ", evType, " \xB7 ", guests, " pax"), coop && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, background: "#fef3c7", color: "#92400e", padding: "2px 7px", borderRadius: 4, fontWeight: 700 } }, "PARTNER QUOTE")), /* @__PURE__ */ React.createElement(LR, { label: menu.name, sub: `${fmt(ppp)}/pax\xD7${guests}`, val: fmt(fSub) }), (gDisc > 0 || cDisc > 0) && /* @__PURE__ */ React.createElement(LR, { label: `Discount (${Math.round((1 - (1 - gDisc) * (1 - cDisc)) * 100)}%)`, val: `\u2212${fmt(savedAmt)}`, green: true }), svc.bar && /* @__PURE__ */ React.createElement(LR, { label: "Bar", val: fmt(bSub) }), svc.venue && /* @__PURE__ */ React.createElement(LR, { label: "Venue Rental", val: fmt(vFee) }), del > 0 && /* @__PURE__ */ React.createElement(LR, { label: "Delivery", val: fmt(del) }), svc.venue && credit > 0 && /* @__PURE__ */ React.createElement(LR, { label: "Venue Credit", val: `\u2212${fmt(credit)}`, green: true }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px solid #f3f4f6", margin: "8px 0 4px" } }), /* @__PURE__ */ React.createElement(LR, { label: "Subtotal ex. VAT", val: fmt(exVAT), muted: true }), /* @__PURE__ */ React.createElement(LR, { label: "VAT", val: fmt(Math.round(fSub * VAT_FOOD) + Math.round(bSub * VAT_BAR)), muted: true }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "2px solid #111", marginTop: 8, paddingTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 17, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("span", null, "Total (incl. VAT)"), /* @__PURE__ */ React.createElement("span", null, fmt(stdTotal))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fef3c7", borderRadius: 8, padding: "8px 10px", marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#92400e", fontWeight: 700 } }, "Per person"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 19, fontWeight: 700, color: "#78350f" } }, fmt(Math.round(stdTotal / guests)), " ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 400 } }, "incl. VAT")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#92400e" } }, fmt(ppp), " ex. VAT")), /* @__PURE__ */ React.createElement("div", { style: { background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700 } }, "\u{1F3AF} Price adjustment"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: stdAdj > 0 ? "#15803d" : stdAdj < 0 ? "#dc2626" : "#6b7280" } }, stdAdj > 0 ? "+" : "", stdAdj, "%")), /* @__PURE__ */ React.createElement("input", { type: "range", min: -20, max: 30, value: stdAdj, onChange: (e) => setStdAdj(Number(e.target.value)), style: { width: "100%", accentColor: "#e11d48" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af" } }, /* @__PURE__ */ React.createElement("span", null, "\u221220%"), /* @__PURE__ */ React.createElement("span", null, "0"), /* @__PURE__ */ React.createElement("span", null, "+30%"))))), /* @__PURE__ */ React.createElement(PC, null))), tab === "custom" && /* @__PURE__ */ React.createElement("div", { className: "mg", style: { maxWidth: 1080, margin: "0 auto", padding: 14, display: "grid", gridTemplateColumns: "1fr 310px", gap: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 } }, "\u26A1 Quick Start \u2014 pick an event type"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, PRESETS.map((p) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: p.id,
+        onClick: () => applyPreset(p),
+        title: p.desc,
+        style: { display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", border: "1px solid #e5e7eb", borderRadius: 20, background: "white", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#374151", transition: "all 0.1s" },
+        onMouseEnter: (e) => {
+          e.currentTarget.style.background = "#fff1f2";
+          e.currentTarget.style.borderColor = "#e11d48";
+          e.currentTarget.style.color = "#be123c";
+        },
+        onMouseLeave: (e) => {
+          e.currentTarget.style.background = "white";
+          e.currentTarget.style.borderColor = "#e5e7eb";
+          e.currentTarget.style.color = "#374151";
+        }
+      },
+      /* @__PURE__ */ React.createElement("span", null, p.icon),
+      /* @__PURE__ */ React.createElement("span", null, p.name)
+    )))), templates.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "10px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" } }, "\u{1F4DA} Saved Templates"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, templates.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, style: { display: "flex", alignItems: "stretch", borderRadius: 8, overflow: "hidden", border: "1px solid #ddd6fe" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => loadTemplate(t), style: { background: "#f5f3ff", color: "#5b21b6", border: "none", padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" } }, t.name), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteTemplate(t.id), title: "Delete template", style: { background: "#faf5ff", color: "#c4b5fd", border: "none", borderLeft: "1px solid #ddd6fe", padding: "5px 8px", fontSize: 11, cursor: "pointer" } }, "\u2715"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("templates"), style: { background: "#f9fafb", color: "#9ca3af", border: "1px dashed #d1d5db", borderRadius: 8, padding: "5px 12px", fontSize: 12, cursor: "pointer" } }, "manage \u2192"))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F464} Client & Event" }, /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Event / Menu Name", span2: true }, /* @__PURE__ */ React.createElement("input", { value: C.eventName, onChange: (e) => upd("eventName", e.target.value), style: I })), [["Name", "name", "text"], ["Company", "company", "text"], ["Email", "email", "email"], ["Phone", "phone", "tel"]].map(([l, k, t]) => /* @__PURE__ */ React.createElement(F, { key: k, label: l }, /* @__PURE__ */ React.createElement("input", { type: t, value: cc[k] || "", onChange: (e) => setCc({ ...cc, [k]: e.target.value }), style: I }))), /* @__PURE__ */ React.createElement(F, { label: "Event Date" }, /* @__PURE__ */ React.createElement("input", { type: "date", value: cDate, onChange: (e) => setCDate(e.target.value), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Guest Count" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, alignItems: "center" } }, /* @__PURE__ */ React.createElement(SB, { onClick: () => upd("guests", Math.max(1, C.guests - 10)) }, "\u2212"), /* @__PURE__ */ React.createElement("input", { type: "number", value: C.guests, onChange: (e) => upd("guests", Math.min(500, Math.max(1, parseInt(e.target.value) || 1))), style: { ...I, textAlign: "center", fontWeight: 700, fontSize: 15, flex: 1 } }), /* @__PURE__ */ React.createElement(SB, { onClick: () => upd("guests", Math.min(500, C.guests + 10)) }, "+"))), /* @__PURE__ */ React.createElement(F, { label: "Notes", span2: true }, /* @__PURE__ */ React.createElement("textarea", { rows: 2, value: cNotes, onChange: (e) => setCNotes(e.target.value), style: { ...I, resize: "vertical" } }))), holInfo && holInfo.major && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#991b1b" } }, /* @__PURE__ */ React.createElement("strong", null, "\u{1F384} ", holInfo.name, " \u2014 st\xF3rh\xE1t\xED\xF0ardagur."), " Labour \xD71.90 applies. Price accordingly \u2014 this is a premium date."), holInfo && !holInfo.major && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, background: "#fefce8", border: "1.5px solid #fde047", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#854d0e" } }, /* @__PURE__ */ React.createElement("strong", null, "\u{1F4C6} ", holInfo.name, " \u2014 fr\xEDdagur."), " Labour \xD71.45 applies (same as weekend). Heads-up only."), !holInfo && eveInfo && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 10, background: "#fff7ed", border: "1.5px solid #fdba74", borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#9a3412" } }, /* @__PURE__ */ React.createElement("strong", null, "\u{1F305} Eve of ", eveInfo.name, "."), " No surcharge applies \u2014 but you will likely be busy this evening as the day after is a day off. The restaurant typically runs at full holiday capacity with high-margin walk-in traffic. Consider whether this booking conflicts with a better opportunity when setting your margin.")), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F9C2} Ingredients" }, /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Cost per person ex. VAT (kr)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.ingredientPP, onChange: updN("ingredientPP"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Total" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(ingCost) })))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F468}\u200D\u{1F373} Labour" }, /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10, padding: "8px 12px", borderRadius: 8, border: `1.5px solid ${dayType.color}20`, background: `${dayType.color}10` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: dayType.color } }, dayType.label), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer" } }, /* @__PURE__ */ React.createElement(Tog, { val: C.autoOvertime, set: (v) => upd("autoOvertime", v) }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#6b7280" } }, "Auto-detect"))), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Event start time" }, /* @__PURE__ */ React.createElement("input", { type: "time", value: C.eventStartTime, onChange: (e) => upd("eventStartTime", e.target.value), style: I })), C.autoOvertime ? /* @__PURE__ */ React.createElement(F, { label: "Detected multiplier" }, /* @__PURE__ */ React.createElement(Ro, { val: `\xD7${fieldMult} \u2014 ${dayType.type === "daytime" ? "splits at 17:00" : dayType.label}` })) : /* @__PURE__ */ React.createElement(F, { label: "Manual multiplier" }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.01, value: C.overtimeMult, onChange: updN("overtimeMult"), style: I }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5, flexWrap: "wrap", marginTop: 8 } }, [["\u2600\uFE0F Daytime", "1.0", "#15803d"], ["\u{1F306} Evening", "1.33", "#7c3aed"], ["\u{1F4C5} Weekend", "1.45", "#d97706"], ["\u{1F384} Holiday", "1.9", "#dc2626"]].map(([lbl, m, c]) => /* @__PURE__ */ React.createElement("div", { key: m, style: { fontSize: 10, padding: "2px 8px", borderRadius: 20, background: `${c}15`, color: c, fontWeight: 600, border: `1px solid ${c}40` } }, lbl, " \xD7", m)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", marginBottom: 10, padding: "6px 10px", background: "#f9fafb", borderRadius: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 } }, /* @__PURE__ */ React.createElement("div", null, "Prep rate: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#111" } }, fmt(prepRate), "/hr"), " ", /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, "(base only)")), /* @__PURE__ */ React.createElement("div", null, "Field rate: ", /* @__PURE__ */ React.createElement("strong", { style: { color: dayType.color } }, fmt(fieldRate), "/hr")), /* @__PURE__ */ React.createElement("div", { style: { gridColumn: "1/-1", marginTop: 2, color: "#9ca3af" } }, "Salary costs: \xD7", SALARY_COSTS, " fixed (pension + holiday pay)")), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(F, { label: "Base hourly rate (kr)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.baseRate, onChange: updN("baseRate"), style: I }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 } }, "Hours breakdown"), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr 80px 100px", gap: 6, marginBottom: 4, alignItems: "end" } }, /* @__PURE__ */ React.createElement(F, { label: "Prep hrs per staff (all days)" }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.5, value: C.prepHours, onChange: updN("prepHours"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Staff" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.prepStaff, onChange: updN("prepStaff"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Staff-hrs" }, /* @__PURE__ */ React.createElement(Ro, { val: (C.prepHours * C.prepStaff).toFixed(1) + "h" })), /* @__PURE__ */ React.createElement(F, { label: "Cost" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(prepCost), bold: true }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", padding: "4px 8px", background: "#f9fafb", borderRadius: 6, marginBottom: 8 } }, "\u{1F4A1} Total wall-clock prep hours per person across all days combined."), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr 80px 100px", gap: 6, marginBottom: 2, alignItems: "end" } }, /* @__PURE__ */ React.createElement(F, { label: "On-location hrs (all staff simultaneous)" }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.5, value: C.locationHours, onChange: updN("locationHours"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Staff" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.locationStaff, onChange: updN("locationStaff"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Staff-hrs" }, /* @__PURE__ */ React.createElement(Ro, { val: (C.locationHours * C.locationStaff).toFixed(1) + "h" })), /* @__PURE__ */ React.createElement(F, { label: "Cost" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(locCost), bold: true }))), dayType.type === "daytime" && (dayHrs > 0 || eveHrs > 0) && /* @__PURE__ */ React.createElement("div", { style: { marginLeft: 8, marginBottom: 8, padding: "5px 10px", background: "#f5f3ff", borderRadius: 6, fontSize: 11, color: "#6b7280" } }, "\u21B3 ", dayHrs.toFixed(1), "h until 17:00 @ ", fmt(prepRate), "/hr + ", eveHrs.toFixed(1), "h after 17:00 @ ", fmt(Math.round(C.baseRate * 1.33 * C.salaryCosts)), "/hr"), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr 80px 100px", gap: 6, marginBottom: 2, alignItems: "end" } }, /* @__PURE__ */ React.createElement(F, { label: `Travel hrs${suggestedTravelHrs > 0 ? ` (${C.kmOneWay * 2}km \xF7 ${C.avgSpeedKmh}km/h = ${suggestedTravelHrs}h suggested)` : ""}` }, /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.5, value: C.travelHours, onChange: updN("travelHours"), style: I }), suggestedTravelHrs > 0 && !travelLinked && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#e11d48", cursor: "pointer", fontWeight: 700 }, onClick: () => upd("travelHours", suggestedTravelHrs), title: "Sync to km" }, "\u21BB", suggestedTravelHrs, "h"), travelLinked && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", fontSize: 10, color: "#15803d" } }, "\u{1F517}"))), /* @__PURE__ */ React.createElement(F, { label: "Staff" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.travelStaff, onChange: updN("travelStaff"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Staff-hrs" }, /* @__PURE__ */ React.createElement(Ro, { val: (C.travelHours * C.travelStaff).toFixed(1) + "h" })), /* @__PURE__ */ React.createElement(F, { label: "Cost" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(travCost), bold: true }))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Avg. speed for travel estimate (km/h)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.avgSpeedKmh, onChange: updN("avgSpeedKmh"), style: { ...I, width: 100 } }))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px solid #f3f4f6", paddingTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#92400e", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 } }, "\u26A0\uFE0F Planning & Manager Overhead"), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr 100px", gap: 6, alignItems: "end" } }, /* @__PURE__ */ React.createElement(F, { label: "Planning hours" }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.5, value: C.planningHours, onChange: updN("planningHours"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Manager rate (kr/hr)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.planningRate, onChange: updN("planningRate"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Cost" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(planCost), bold: true })))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", fontWeight: 700, fontSize: 13, marginTop: 8 } }, "Total labour: ", fmt(labourTotal))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F697} Transport" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12 } }, [["selfoss", "\u{1F4CD} In Selfoss"], ["outside", "\u{1F5FA}\uFE0F Outside Selfoss"]].map(([v, lbl]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => upd("deliveryZone", v), style: { flex: 1, padding: "8px", border: `1.5px solid ${C.deliveryZone === v ? "#e11d48" : "#e5e7eb"}`, borderRadius: 8, background: C.deliveryZone === v ? "#fff1f2" : "white", color: C.deliveryZone === v ? "#be123c" : "#6b7280", fontWeight: 600, fontSize: 13, cursor: "pointer" } }, lbl))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 } }, "VAT treatment"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, [["separate24", "\u{1F9FE} Separate line (24%)", "For corporate/B2B clients who reclaim VAT"], ["bundle11", "\u{1F4E6} Bundle into catering (11%)", "For private clients \u2014 lower total price"]].map(([v, lbl, tip]) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: v,
+        onClick: () => upd("transportVATMode", v),
+        title: tip,
+        style: { flex: 1, padding: "8px 10px", border: `1.5px solid ${C.transportVATMode === v ? "#e11d48" : "#e5e7eb"}`, borderRadius: 8, background: C.transportVATMode === v ? "#fff1f2" : "white", color: C.transportVATMode === v ? "#be123c" : "#6b7280", fontWeight: 600, fontSize: 11, cursor: "pointer", lineHeight: 1.3 }
+      },
+      lbl,
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 400, color: C.transportVATMode === v ? "#9f1239" : "#9ca3af", marginTop: 2 } }, tip)
+    )))), C.deliveryZone === "selfoss" ? /* @__PURE__ */ React.createElement("div", { style: { background: C.guests >= 30 ? "#f0fdf4" : "#fef9c3", border: `1px solid ${C.guests >= 30 ? "#bbf7d0" : "#fcd34d"}`, borderRadius: 8, padding: "12px 14px", fontSize: 13 } }, C.guests >= 30 ? /* @__PURE__ */ React.createElement("div", { style: { color: "#15803d", fontWeight: 700 } }, "\u2713 Free delivery \u2014 ", C.guests, " guests (30+ pax in Selfoss)") : /* @__PURE__ */ React.createElement("div", { style: { color: "#92400e", fontWeight: 700 } }, "2.990 kr flat \u2014 under 30 pax in Selfoss")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(F, { label: "Distance one way (km)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.kmOneWay, onChange: (e) => {
+      const v = parseFloat(e.target.value) || 0;
+      upd("kmOneWay", v);
+      if (travelLinked) upd("travelHours", round5(v * 2 / C.avgSpeedKmh));
+    }, style: I })), /* @__PURE__ */ React.createElement(F, { label: "Vehicles" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.vehicles, onChange: updN("vehicles"), style: I }))), /* @__PURE__ */ React.createElement("div", { style: { background: "#f9fafb", borderRadius: 8, padding: "10px 12px", marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 } }, "Cost per km breakdown"), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 } }, /* @__PURE__ */ React.createElement(F, { label: "Fuel price per liter (kr)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.fuelPricePerL, onChange: updN("fuelPricePerL"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Consumption (L/100km)" }, /* @__PURE__ */ React.createElement("input", { type: "number", step: 0.5, value: C.fuelConsumptionPer100, onChange: updN("fuelConsumptionPer100"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Vehicle overhead (kr/km)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.vehicleOverheadPerKm, onChange: updN("vehicleOverheadPerKm"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "K\xEDl\xF3metragjald (fixed by law)" }, /* @__PURE__ */ React.createElement(Ro, { val: `${KM_TAX} kr/km (vans \u22643.5t)` }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 6 } }, "\u{1F4A1} Vehicle overhead: tyres, oil, brakes, insurance amortized per km. Typically 15\u201325 kr/km for a van."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, display: "flex", justifyContent: "space-between", fontSize: 12, borderTop: "1px solid #e5e7eb", paddingTop: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, "Fuel ", fmt(Math.round(C.fuelPricePerL * (C.fuelConsumptionPer100 / 100))), " + tax ", fmt(Math.round(KM_TAX)), " + overhead ", fmt(C.vehicleOverheadPerKm), " ="), /* @__PURE__ */ React.createElement("strong", null, fmt(Math.round(vehicleCostPerKm)), "/km per vehicle"))), /* @__PURE__ */ React.createElement("div", { className: "g2c", style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 } }, /* @__PURE__ */ React.createElement(F, { label: "Base fee (kr, optional \u2014 0 for km-only)" }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.deliveryBaseFee, onChange: updN("deliveryBaseFee"), style: I })), /* @__PURE__ */ React.createElement(F, { label: "Total transport cost" }, /* @__PURE__ */ React.createElement(Ro, { val: fmt(transCost), bold: true }))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, C.vehicles, " vehicle", C.vehicles > 1 ? "s" : "", " \xD7 ", C.kmOneWay * 2, "km \xD7 ", fmt(Math.round(vehicleCostPerKm)), "/km = ", fmt(Math.round(kmCost)), (C.deliveryBaseFee || 0) > 0 ? ` + ${fmt(C.deliveryBaseFee)} base fee` : "", " \xB7 Fuel ref: ", /* @__PURE__ */ React.createElement("a", { href: "https://gasvaktin.is", target: "_blank", style: { color: "#e11d48" } }, "gasvaktin.is"), " (~215 kr/L May 2026)"))), /* @__PURE__ */ React.createElement(Card, { title: "\u{1FA91} Equipment & Setup" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("buffetLayout"), style: { marginBottom: 12, width: "100%", padding: 9, border: "1.5px dashed #d97706", borderRadius: 9, background: "#fffbeb", cursor: "pointer", fontSize: 12, color: "#92400e", fontWeight: 600 } }, "\u{1F4D0} View buffet setup reference (160 / 240 / 80-100 pax)"), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 6 } }, /* @__PURE__ */ React.createElement(F, { label: "Consumables per person (kr)" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, /* @__PURE__ */ React.createElement("input", { type: "number", value: C.consumablesPP, onChange: updN("consumablesPP"), style: I }), /* @__PURE__ */ React.createElement("button", { onClick: () => upd("consumablesPP", suggestedConsumablesPP), title: `Suggested for ${C.guests} guests: scales down for bulk events (economies of scale)`, style: { padding: "0 10px", border: "1px solid #0284c7", borderRadius: 8, background: "#e0f2fe", color: "#0369a1", cursor: "pointer", fontSize: 11, fontWeight: 700, flexShrink: 0, whiteSpace: "nowrap" } }, "\u21BB ", suggestedConsumablesPP)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280", background: "#f9fafb", borderRadius: 8, padding: "7px 10px", marginBottom: 12, lineHeight: 1.6 } }, "\u2139\uFE0F ", /* @__PURE__ */ React.createElement("strong", null, "Consumables"), " is the catch-all for small disposables you don't itemize: napkins, cling wrap, foil, gloves, piping bags, toothpicks, takeaway boxes. The ", /* @__PURE__ */ React.createElement("strong", null, "\u21BB suggest"), " button calculates a rate from guest count (bulk events use less per head \u2014 economies of scale) \u2014 click it to apply. At ", C.guests, " guests: ", fmt(C.guests * C.consumablesPP), ' total. Chafing dishes, fuel, and hot service items are set directly in the equipment list below \u2014 adjust their quantities like any other item. For one-off named costs (permits, venue fees, rentals), use "+ Add" in the equipment list.'), /* @__PURE__ */ React.createElement(EquipSection, { equipment, setEquipment, onRefresh: refreshEquipQty, customItems, setCustomItems, touchedQty, setTouchedQty })), /* @__PURE__ */ React.createElement(Card, { title: "\u{1F3E2} Fixed Overhead & Margin" }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#374151", marginBottom: 12, padding: "8px 12px", background: "#f0f9ff", borderRadius: 8, lineHeight: 1.6 } }, "Overhead covers rent, electricity, subscriptions, insurance and accounting \u2014 charged as a ", /* @__PURE__ */ React.createElement("strong", null, "% of revenue"), " so small parties pay less and large parties pay their fair share automatically."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12 } }, "Overhead %"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: "#0369a1" } }, C.overheadPct, "%")), /* @__PURE__ */ React.createElement("input", { type: "range", min: 0, max: 25, step: 1, value: C.overheadPct, onChange: (e) => upd("overheadPct", Number(e.target.value)), style: { width: "100%", accentColor: "#0369a1" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 6 } }, [5, 8, 10, 12, 15].map((v) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => upd("overheadPct", v), style: { flex: 1, padding: "4px 0", fontSize: 11, fontWeight: 600, border: `1px solid ${C.overheadPct === v ? "#0369a1" : "#e5e7eb"}`, borderRadius: 6, background: C.overheadPct === v ? "#e0f2fe" : "white", color: C.overheadPct === v ? "#0369a1" : "#6b7280", cursor: "pointer" } }, v, "%"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, fontSize: 11, color: "#6b7280", lineHeight: 1.7 } }, "At this quote: ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#0369a1" } }, fmt(overheadContribution)), " overhead contribution \u2192 ", /* @__PURE__ */ React.createElement("strong", { style: { color: "#0369a1" } }, fmt(Math.round(overheadContribution / Math.max(C.guests, 1))), "/pax"), /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, "Typical range: 8\u201312% for a catering operation where the restaurant also shares fixed costs. Use 12\u201318% if catering must cover all fixed costs alone."))), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px solid #e5e7eb", paddingTop: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12 } }, "Profit Margin %"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 16, fontWeight: 700, color: C.targetMarginPct >= 20 ? "#15803d" : C.targetMarginPct >= 15 ? "#d97706" : "#dc2626" } }, C.targetMarginPct, "%")), /* @__PURE__ */ React.createElement("input", { type: "range", min: 5, max: 50, value: C.targetMarginPct, onChange: (e) => upd("targetMarginPct", Number(e.target.value)), style: { width: "100%", accentColor: "#e11d48" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 6 } }, [15, 20, 25, 28, 30].map((v) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => upd("targetMarginPct", v), style: { flex: 1, padding: "4px 0", fontSize: 11, fontWeight: 600, border: `1px solid ${C.targetMarginPct === v ? "#e11d48" : "#e5e7eb"}`, borderRadius: 6, background: C.targetMarginPct === v ? "#fff1f2" : "white", color: C.targetMarginPct === v ? "#be123c" : "#6b7280", cursor: "pointer" } }, v, "%"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 8, padding: "8px 10px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 12, color: "#15803d" } }, /* @__PURE__ */ React.createElement("strong", null, "Revenue split: ", C.targetMarginPct, "% profit + ", C.overheadPct, "% overhead + ", Math.round(100 - C.targetMarginPct - C.overheadPct), "% direct costs"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#166534", marginTop: 2 } }, "Actual margin: ", pct(actualMargin), " \xB7 Overhead: ", fmt(overheadContribution), " \xB7 Profit: ", fmt(Math.round(revNeeded * C.targetMarginPct / 100)))))), /* @__PURE__ */ React.createElement("div", { style: { background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#5b21b6" } }, "\u{1F4DA} Save as Menu Template"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#7c3aed", marginTop: 2 } }, "Stores all cost parameters + equipment list for instant reuse.")), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      setTplName(C.eventName);
+      setModal("saveTemplate");
+    }, style: { background: "#7c3aed", color: "white", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 } }, "Save Template \u2192"))), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", top: 60, alignSelf: "start", display: "flex", flexDirection: "column", gap: 10 } }, /* @__PURE__ */ React.createElement(SHdr, { qid: cQid }), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, fontWeight: 700 } }, "\u{1F3AF} Target Margin"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 18, fontWeight: 700, color: C.targetMarginPct >= 28 ? "#15803d" : C.targetMarginPct >= 22 ? "#d97706" : "#dc2626" } }, C.targetMarginPct, "%")), /* @__PURE__ */ React.createElement("input", { type: "range", min: 5, max: 50, value: C.targetMarginPct, onChange: (e) => upd("targetMarginPct", Number(e.target.value)), style: { width: "100%", accentColor: "#e11d48" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginTop: 6 } }, [20, 25, 28, 30, 35].map((v) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => upd("targetMarginPct", v), style: { flex: 1, padding: "4px 0", fontSize: 11, fontWeight: 600, border: `1px solid ${C.targetMarginPct === v ? "#e11d48" : "#e5e7eb"}`, borderRadius: 6, background: C.targetMarginPct === v ? "#fff1f2" : "white", color: C.targetMarginPct === v ? "#be123c" : "#6b7280", cursor: "pointer" } }, v, "%")))), /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: "12px 14px" } }, /* @__PURE__ */ React.createElement("div", { style: { borderBottom: "1px solid #f3f4f6", paddingBottom: 10, marginBottom: 10, fontSize: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, C.eventName), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, marginTop: 2 } }, cc.name || "Client"), cc.company && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, cc.company), cc.email && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, cc.email), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginTop: 2 } }, cDate || "Date TBD", " \xB7 ", C.guests, " guests")), /* @__PURE__ */ React.createElement(LR, { label: "Ingredients", sub: `${fmt(C.ingredientPP)}/pax\xD7${C.guests}`, val: fmt(ingCost) }), /* @__PURE__ */ React.createElement(LR, { label: "Labour (all)", val: fmt(labourTotal) }), /* @__PURE__ */ React.createElement(LR, { label: isBundle ? "Transport (bundled 11%)" : "Transport (pass-through, 24% VAT)", val: fmt(transCost), muted: transCost === 0 }), /* @__PURE__ */ React.createElement(LR, { label: `Equipment (${equipOn.filter((e) => !e.pass).length + customItems.filter((e) => !e.pass).length} items, margined)`, val: fmt(equipMarginTotal) }), passTotal > 0 && /* @__PURE__ */ React.createElement(LR, { label: `Third-party (pass-through)`, val: fmt(passTotal) }), /* @__PURE__ */ React.createElement(LR, { label: "Consumables", val: fmt(consCost) }), /* @__PURE__ */ React.createElement(LR, { label: `Contingency (${C.contingencyPct}%)`, val: fmt(contingencyAmt) }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px dashed #e5e7eb", margin: "8px 0 4px" } }), /* @__PURE__ */ React.createElement(LR, { label: "Total cost", val: fmt(totalCost), muted: true }), /* @__PURE__ */ React.createElement(LR, { label: `Catering margin (${C.targetMarginPct}% target)`, val: fmt(Math.round(cateringRevNeeded - (cateringDirectCost + contingencyAmt))), green: true }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "1px solid #f3f4f6", margin: "8px 0 4px" } }), /* @__PURE__ */ React.createElement(LR, { label: `Catering ex. VAT`, val: fmt(Math.round(cateringRevNeeded)), muted: true }), /* @__PURE__ */ React.createElement(LR, { label: `Food VAT (${C.vatRate}%)`, val: fmt(foodVAT), muted: true }), !isBundle && transCost > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(LR, { label: "Transport ex. VAT", val: fmt(transCost), muted: true }), /* @__PURE__ */ React.createElement(LR, { label: "Transport VAT (24%)", val: fmt(transVAT), muted: true })), passTotal > 0 && /* @__PURE__ */ React.createElement(LR, { label: "Third-party at cost (VAT per supplier)", val: fmt(passTotal), muted: true }), /* @__PURE__ */ React.createElement("div", { style: { borderTop: "2px solid #111", marginTop: 8, paddingTop: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("span", null, "Total (incl. VAT)"), /* @__PURE__ */ React.createElement("span", { style: { color: "#be123c" } }, fmt(totalInclVAT))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fef3c7", borderRadius: 8, padding: "10px 12px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#92400e", fontWeight: 700 } }, "Recommended per person"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, fontWeight: 700, color: "#78350f" } }, fmt(ppInclVAT)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#92400e" } }, fmt(ppExVAT), " ex. VAT")))), /* @__PURE__ */ React.createElement(PC, null))), printContent && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 100, display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { background: printContent.reviewMode ? "#fef9c3" : "#111827", padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: printContent.reviewMode ? "#78350f" : "white", fontSize: 14 } }, printContent.reviewMode ? "\u{1F441}\uFE0F Review Draft \u2014 Internal" : "\u{1F5A8}\uFE0F Client Quote Preview"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement("button", { onClick: doPrint, style: { background: "#e11d48", color: "white", border: "none", borderRadius: 8, padding: "8px 18px", fontWeight: 700, fontSize: 13, cursor: "pointer" } }, "\u{1F5A8}\uFE0F Print / Save as PDF"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPrintContent(null), style: { background: "rgba(255,255,255,0.15)", color: printContent.reviewMode ? "#78350f" : "white", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer" } }, "\u2715 Close"))), /* @__PURE__ */ React.createElement("div", { ref: printRef, style: { flex: 1, overflow: "auto", background: "#e5e7eb", padding: 20 } }, /* @__PURE__ */ React.createElement("iframe", { srcDoc: printContent.html, style: { width: "100%", maxWidth: 760, minHeight: 900, margin: "0 auto", display: "block", border: "none", borderRadius: 4, boxShadow: "0 4px 24px rgba(0,0,0,0.2)" }, title: "Quote Preview" }))), modal === "history" && /* @__PURE__ */ React.createElement(Mdl, { title: `\u{1F4DC} Quote History (${quotes.length})`, onClose: () => setModal(null) }, quotes.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { color: "#9ca3af", fontSize: 13 } }, "No saved quotes yet.") : quotes.map((q) => /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", gap: 10, padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 9, marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, cursor: "pointer" }, onClick: () => loadQuote(q) }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, display: "flex", gap: 6, alignItems: "center" } }, q.id, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, background: q.type === "custom" ? "#e0e7ff" : "#fce7f3", color: q.type === "custom" ? "#3730a3" : "#9d174d", padding: "1px 6px", borderRadius: 4 } }, q.type === "custom" ? "Custom" : "Standard")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, q.client && q.client.name || "No client", " \xB7 ", q.evDate || "No date", " \xB7 ", q.guests, " guests"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, q.eventName || q.menuName || "", " \xB7 ", dStr(q.ts))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-end" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#be123c", fontSize: 13 } }, fmt(q.total || q.totalInclVAT || 0)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => loadQuote(q), style: { fontSize: 11, padding: "3px 8px", border: "1px solid #e5e7eb", borderRadius: 6, cursor: "pointer", background: "white" } }, "Load"), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteQuote(q.id), style: { fontSize: 11, padding: "3px 8px", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer", background: "white", color: "#ef4444" } }, "\u2715")))))), modal === "templates" && /* @__PURE__ */ React.createElement(Mdl, { title: `\u{1F4DA} Menu Templates (${templates.length})`, onClose: () => setModal(null) }, templates.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { color: "#9ca3af", fontSize: 13 } }, "No templates yet.") : templates.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, style: { display: "flex", gap: 10, padding: "10px 12px", border: "1px solid #ddd6fe", borderRadius: 9, marginBottom: 6, background: "#faf5ff" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, cursor: "pointer" }, onClick: () => loadTemplate(t) }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#5b21b6" } }, t.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#7c3aed" } }, t.config && t.config.guests, " pax \xB7 ", fmt(t.config && t.config.ingredientPP || 0), "/pax \xB7 ", t.config && t.config.targetMarginPct, "% margin"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "Saved ", dStr(t.savedAt))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => loadTemplate(t), style: { fontSize: 11, padding: "4px 10px", border: "none", borderRadius: 6, cursor: "pointer", background: "#7c3aed", color: "white", fontWeight: 600 } }, "Load"), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteTemplate(t.id), style: { fontSize: 11, padding: "3px 8px", border: "1px solid #fecaca", borderRadius: 6, cursor: "pointer", background: "white", color: "#ef4444" } }, "\u2715")))), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal("saveTemplate"), style: { marginTop: 8, width: "100%", padding: 9, border: "1.5px dashed #c4b5fd", borderRadius: 9, background: "none", cursor: "pointer", fontSize: 13, color: "#7c3aed" } }, "+ Save current as template")), modal === "loadJson" && /* @__PURE__ */ React.createElement(Mdl, { title: "\u{1F4E5} Load Quote from JSON", onClose: () => setModal(null) }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#6b7280", marginBottom: 10, lineHeight: 1.6 } }, "Paste the quote JSON from a saved email (the box at the bottom of the quote email) to restore it into the calculator \u2014 useful for reloading quotes on a different device."), /* @__PURE__ */ React.createElement("textarea", { value: jsonPaste, onChange: (e) => {
+      setJsonPaste(e.target.value);
+      setJsonError("");
+    }, placeholder: "Paste quote JSON here\u2026", rows: 10, style: { ...I, fontFamily: "monospace", fontSize: 11, resize: "vertical", width: "100%" } }), jsonError && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginTop: 6 } }, jsonError), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+      const ok = loadQuoteFromJson(jsonPaste);
+      if (!ok) setJsonError("Couldn't parse this as a valid quote. Make sure you copied the full JSON block.");
+    }, style: { marginTop: 10, width: "100%", padding: 9, background: "#e11d48", color: "white", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 } }, "Load Quote")), modal === "buffetLayout" && /* @__PURE__ */ React.createElement(Mdl, { title: "\u{1F4D0} Buffet Setup Reference", onClose: () => setModal(null) }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#6b7280", marginBottom: 10, lineHeight: 1.6 } }, "Table layouts and dish placement for 160, 240, and 80\u2013100 pax buffets, plus the carving station and equipment legend."), /* @__PURE__ */ React.createElement("img", { src: "buffet_layout.png", alt: "Buffet setup reference \u2014 table layouts by guest count", style: { width: "100%", height: "auto", borderRadius: 8, border: "1px solid #e5e7eb" } })), modal === "saveTemplate" && /* @__PURE__ */ React.createElement(Mdl, { title: "\u{1F4BE} Save Menu Template", onClose: () => setModal(null), small: true }, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: "#374151", marginBottom: 12 } }, "Name this template \u2014 saves all cost params and equipment list."), /* @__PURE__ */ React.createElement(F, { label: "Template name" }, /* @__PURE__ */ React.createElement("input", { value: tplName, onChange: (e) => setTplName(e.target.value), onKeyDown: (e) => e.key === "Enter" && saveTemplate(), placeholder: C.eventName, style: I, autoFocus: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: saveTemplate, style: { flex: 1, padding: "9px", background: "#7c3aed", color: "white", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 } }, "Save Template"), /* @__PURE__ */ React.createElement("button", { onClick: () => setModal(null), style: { padding: "9px 14px", border: "1px solid #e5e7eb", borderRadius: 8, cursor: "pointer", background: "white", fontSize: 13 } }, "Cancel"))));
+  }
+  var I = { width: "100%", border: "1px solid #e5e7eb", borderRadius: 8, padding: "7px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit" };
+  var Card = ({ title, children }) => /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, marginBottom: 10 } }, title), children);
+  var F = ({ label, children, span2 }) => /* @__PURE__ */ React.createElement("div", { style: span2 ? { gridColumn: "1/-1" } : {} }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: 700, color: "#6b7280", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.05em" } }, label), children);
+  var Ro = ({ val, bold }) => /* @__PURE__ */ React.createElement("div", { style: { ...I, background: "#f9fafb", color: bold ? "#374151" : "#6b7280", fontWeight: bold ? 700 : 400, cursor: "default" } }, val);
+  var SB = ({ onClick, children }) => /* @__PURE__ */ React.createElement("button", { onClick, style: { width: 28, height: 28, borderRadius: 7, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: 15, fontWeight: 700, flexShrink: 0 } }, children);
+  var Rad = ({ sel }) => /* @__PURE__ */ React.createElement("div", { style: { width: 14, height: 14, borderRadius: "50%", border: `2px solid ${sel ? "#e11d48" : "#d1d5db"}`, background: sel ? "#e11d48" : "white", marginTop: 2, flexShrink: 0 } });
+  var Tog = ({ val, set }) => /* @__PURE__ */ React.createElement("div", { onClick: () => set(!val), style: { width: 36, height: 20, borderRadius: 10, background: val ? "#e11d48" : "#d1d5db", position: "relative", cursor: "pointer", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 2, width: 16, height: 16, background: "white", borderRadius: "50%", boxShadow: "0 1px 3px rgba(0,0,0,.2)", transform: val ? "translateX(18px)" : "translateX(2px)", transition: "transform 0.2s" } }));
+  var Bge = ({ n, color = "#e11d48" }) => /* @__PURE__ */ React.createElement("span", { style: { display: "inline-block", background: color, color: "white", borderRadius: 20, fontSize: 10, fontWeight: 700, padding: "1px 6px", marginLeft: 4 } }, n);
+  var LR = ({ label, sub, val, green, muted }) => /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: green ? "#059669" : muted ? "#9ca3af" : "#374151" } }, label), sub && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, sub)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: muted ? 400 : 500, color: green ? "#059669" : muted ? "#9ca3af" : "#111", marginLeft: 8, fontSize: 12, flexShrink: 0 } }, val));
+  var SHdr = ({ qid }) => /* @__PURE__ */ React.createElement("div", { style: { background: "#111827", color: "white", borderRadius: 10, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } }, "Veislu\xFEj\xF3nusta Su\xF0urlands"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "Br\xFAartorg \xB7 +354 451-3320")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, "Quote"), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "monospace", fontSize: 11, fontWeight: 700 } }, qid), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af" } }, (/* @__PURE__ */ new Date()).toLocaleDateString("en-GB"))));
+  var PC = () => /* @__PURE__ */ React.createElement("div", { style: { background: "white", borderRadius: 10, border: "1px solid #e5e7eb", padding: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 12, marginBottom: 7 } }, "\u{1F4CB} Booking Policy"), POLICY.map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 5, marginBottom: 4, fontSize: 11, color: "#4b5563", lineHeight: 1.5 } }, /* @__PURE__ */ React.createElement("span", { style: { flexShrink: 0 } }, p.icon), /* @__PURE__ */ React.createElement("span", null, p.text))));
+  var Mdl = ({ title, children, onClose, small }) => /* @__PURE__ */ React.createElement("div", { onClick: onClose, style: { position: "absolute", inset: 0, background: "rgba(0,0,0,.45)", zIndex: 50, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 16, paddingTop: 60 } }, /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { background: "white", borderRadius: 14, width: "100%", maxWidth: small ? 400 : 500, maxHeight: "78vh", overflow: "auto", padding: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15 } }, title), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" } }, "\u2715")), children));
+  var BS = (bg, border, color) => ({ background: bg, border: `1px solid ${border}`, color, borderRadius: 8, padding: "6px 10px", fontSize: 12, cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center" });
+  var rootEl = document.getElementById("root");
+  if (rootEl) ReactDOM.createRoot(rootEl).render(React.createElement(App));
+})();
+</script></body></html>
